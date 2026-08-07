@@ -26,26 +26,11 @@ jobs:
         with:
           gradle-version: 8.7
 
-      - name: Locate Gradle project directory
-        id: locate
-        run: |
-          MATCH=$(find . -maxdepth 4 \( -name 'settings.gradle' -o -name 'settings.gradle.kts' \) | head -n 1)
-          if [ -z "$MATCH" ]; then
-            echo "Could not find settings.gradle anywhere in the repo (searched 4 levels deep)."
-            echo "Repo contents:"
-            find . -maxdepth 3
-            exit 1
-          fi
-          DIR=$(dirname "$MATCH")
-          echo "Found Gradle project at: $DIR"
-          echo "project_dir=$DIR" >> "$GITHUB_OUTPUT"
-
       - name: Build debug APK
-        working-directory: ${{ steps.locate.outputs.project_dir }}
         run: gradle assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: MusicPlayer-debug-apk
-          path: ${{ steps.locate.outputs.project_dir }}/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
