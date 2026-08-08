@@ -36,9 +36,20 @@ class SongAdapter(
         // actually decode real album art — many tracks have none, and the
         // legacy MediaStore art URI can "resolve" without throwing while
         // still decoding to nothing, which used to leave the row blank.
+        //
+        // Also: a persistent app:tint on this ImageView (previously in the
+        // XML) was recoloring EVERY bitmap loaded into it afterward, not
+        // just the placeholder — which painted real album art solid purple
+        // and made it look like it wasn't loading at all. Tint is now only
+        // ever applied here, alongside the placeholder, and explicitly
+        // cleared whenever real art loads.
+        holder.art.imageTintList = android.content.res.ColorStateList.valueOf(
+            holder.itemView.context.getColor(R.color.accent)
+        )
         holder.art.setImageResource(R.drawable.ic_music_note)
         val bitmap = MusicRepository.loadAlbumArt(holder.itemView.context, song.albumArtUri)
         if (bitmap != null) {
+            holder.art.imageTintList = null
             holder.art.setImageBitmap(bitmap)
         }
 

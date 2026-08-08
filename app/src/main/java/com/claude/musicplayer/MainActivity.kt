@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.view.View
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,10 +27,12 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var nowPlayingTitle: TextView
     private lateinit var nowPlayingArtist: TextView
+    private lateinit var miniArt: ImageView
     private lateinit var playPauseButton: ImageButton
     private lateinit var seekBar: SeekBar
     private lateinit var miniPlayerBar: View
     private val handler = Handler(Looper.getMainLooper())
+    private var lastArtSongId: Long = -1
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -60,12 +63,14 @@ class MainActivity : AppCompatActivity() {
             tab.text = when (position) {
                 0 -> "Songs"
                 1 -> "Playlists"
-                else -> "Folders"
+                2 -> "Folders"
+                else -> "Duplicates"
             }
         }.attach()
 
         nowPlayingTitle = findViewById(R.id.nowPlayingTitle)
         nowPlayingArtist = findViewById(R.id.nowPlayingArtist)
+        miniArt = findViewById(R.id.miniArt)
         playPauseButton = findViewById(R.id.playPauseButton)
         seekBar = findViewById(R.id.miniSeekBar)
         miniPlayerBar = findViewById(R.id.miniPlayerBar)
@@ -106,6 +111,12 @@ class MainActivity : AppCompatActivity() {
                     if (song != null) {
                         nowPlayingTitle.text = song.title
                         nowPlayingArtist.text = song.artist
+                        if (song.id != lastArtSongId) {
+                            lastArtSongId = song.id
+                            miniArt.setImageResource(R.drawable.ic_music_note)
+                            val bitmap = MusicRepository.loadAlbumArt(this@MainActivity, song.albumArtUri)
+                            if (bitmap != null) miniArt.setImageBitmap(bitmap)
+                        }
                     }
                     val duration = svc.getDurationMs()
                     if (duration > 0) {

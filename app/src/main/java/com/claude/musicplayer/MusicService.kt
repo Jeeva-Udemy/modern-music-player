@@ -48,6 +48,18 @@ class MusicService : Service() {
     private var mediaPlayer: MediaPlayer? = null
     private lateinit var mediaSession: MediaSessionCompat
     private var currentIndex = 0
+    var shuffleEnabled = false
+        private set
+    var repeatEnabled = false
+        private set
+
+    fun toggleShuffle() {
+        shuffleEnabled = !shuffleEnabled
+    }
+
+    fun toggleRepeat() {
+        repeatEnabled = !repeatEnabled
+    }
 
     inner class LocalBinder : Binder() {
         fun getService(): MusicService = this@MusicService
@@ -142,7 +154,21 @@ class MusicService : Service() {
 
     fun playNext() {
         if (currentQueue.isEmpty()) return
-        playSongAt((currentIndex + 1) % currentQueue.size)
+        val nextIndex: Int = if (shuffleEnabled && currentQueue.size > 1) {
+            var candidate: Int
+            do {
+                candidate = currentQueue.indices.random()
+            } while (candidate == currentIndex)
+            candidate
+        } else {
+            val n = currentIndex + 1
+            when {
+                n < currentQueue.size -> n
+                repeatEnabled -> 0
+                else -> return // reached the end, not repeating — just stop
+            }
+        }
+        playSongAt(nextIndex)
     }
 
     fun playPrevious() {

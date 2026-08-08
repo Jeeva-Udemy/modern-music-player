@@ -184,6 +184,21 @@ object FileOrganizer {
         } catch (e: Exception) { /* ignore */ }
     }
 
+    /** Permanently deletes one file and its MediaStore entry. Requires full storage access. */
+    fun deleteFile(context: Context, path: String): Boolean {
+        return try {
+            val file = File(path)
+            val deleted = if (file.exists()) file.delete() else true
+            if (deleted) {
+                deleteFromMediaStore(context, file)
+                android.media.MediaScannerConnection.scanFile(context, arrayOf(path), null, null)
+            }
+            deleted
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     /** True once the app can freely read/write anywhere on external storage. */
     fun hasFullStorageAccess(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

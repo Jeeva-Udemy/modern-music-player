@@ -25,6 +25,8 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var artistView: TextView
     private lateinit var artView: ImageView
     private lateinit var playPauseButton: ImageButton
+    private lateinit var shuffleButton: ImageButton
+    private lateinit var repeatButton: ImageButton
     private lateinit var seekBar: SeekBar
 
     private val connection = object : ServiceConnection {
@@ -47,6 +49,8 @@ class NowPlayingActivity : AppCompatActivity() {
         artistView = findViewById(R.id.npArtist)
         artView = findViewById(R.id.npArt)
         playPauseButton = findViewById(R.id.npPlayPause)
+        shuffleButton = findViewById(R.id.npShuffle)
+        repeatButton = findViewById(R.id.npRepeat)
         seekBar = findViewById(R.id.npSeekBar)
 
         findViewById<ImageButton>(R.id.npBack).setOnClickListener { finish() }
@@ -65,6 +69,14 @@ class NowPlayingActivity : AppCompatActivity() {
                 updatePlayPauseIcon()
             }
         }
+        shuffleButton.setOnClickListener {
+            musicService?.toggleShuffle()
+            updateToggleButtonStates()
+        }
+        repeatButton.setOnClickListener {
+            musicService?.toggleRepeat()
+            updateToggleButtonStates()
+        }
         findViewById<Button>(R.id.npAddToPlaylist).setOnClickListener {
             musicService?.getCurrentSong()?.let { song ->
                 PlaylistDialogHelper.showAddToPlaylistDialog(this, song)
@@ -80,12 +92,25 @@ class NowPlayingActivity : AppCompatActivity() {
         val song = musicService?.getCurrentSong() ?: return
         titleView.text = song.title
         artistView.text = song.artist
+        artView.imageTintList = android.content.res.ColorStateList.valueOf(getColor(R.color.accent))
         artView.setImageResource(R.drawable.ic_music_note)
         val bitmap = MusicRepository.loadAlbumArt(this, song.albumArtUri)
         if (bitmap != null) {
+            artView.imageTintList = null
             artView.setImageBitmap(bitmap)
         }
         updatePlayPauseIcon()
+        updateToggleButtonStates()
+    }
+
+    private fun updateToggleButtonStates() {
+        val service = musicService ?: return
+        shuffleButton.imageTintList = android.content.res.ColorStateList.valueOf(
+            getColor(if (service.shuffleEnabled) R.color.accent else R.color.textSecondary)
+        )
+        repeatButton.imageTintList = android.content.res.ColorStateList.valueOf(
+            getColor(if (service.repeatEnabled) R.color.accent else R.color.textSecondary)
+        )
     }
 
     private fun updatePlayPauseIcon() {
