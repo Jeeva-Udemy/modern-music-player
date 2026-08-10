@@ -99,7 +99,7 @@ class MainActivity : AppCompatActivity() {
     private fun updatePlayPauseIcon() {
         val playing = musicService?.isPlaying() == true
         playPauseButton.setImageResource(
-            if (playing) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+            if (playing) R.drawable.ic_pause else R.drawable.ic_play
         )
     }
 
