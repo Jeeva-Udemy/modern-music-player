@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -25,6 +26,7 @@ class DuplicatesFragment : Fragment(R.layout.fragment_duplicates) {
     private lateinit var deleteButton: Button
     private lateinit var emptyView: TextView
     private lateinit var progressBar: ProgressBar
+    private lateinit var swipeRefresh: SwipeRefreshLayout
 
     private var groups: List<DuplicateFinder.DuplicateGroup> = emptyList()
     private val selectedPaths = mutableSetOf<String>()
@@ -54,6 +56,13 @@ class DuplicatesFragment : Fragment(R.layout.fragment_duplicates) {
         recyclerView.adapter = adapter
 
         deleteButton.setOnClickListener { confirmDelete() }
+
+        swipeRefresh = view.findViewById(R.id.duplicatesSwipeRefresh)
+        swipeRefresh.setColorSchemeResources(R.color.accent)
+        swipeRefresh.setOnRefreshListener {
+            loadDuplicates()
+            swipeRefresh.isRefreshing = false
+        }
 
         loadDuplicates()
     }

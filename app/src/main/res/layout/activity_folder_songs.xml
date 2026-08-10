@@ -7,6 +7,7 @@
     android:background="@color/backgroundDark">
 
     <LinearLayout
+        android:id="@+id/normalHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
@@ -19,7 +20,7 @@
             android:layout_height="42dp"
             android:background="@drawable/bg_chip"
             android:padding="10dp"
-            android:src="@android:drawable/ic_media_previous"
+            android:src="@drawable/ic_arrow_back"
             app:tint="@color/textPrimary" />
 
         <TextView
@@ -31,13 +32,71 @@
             android:textColor="@color/textPrimary"
             android:textSize="19sp"
             android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/selectModeButton"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="8dp"
+            android:src="@drawable/ic_select_mode"
+            app:tint="@color/textPrimary" />
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/folderSongsRecyclerView"
+    <LinearLayout
+        android:id="@+id/selectionHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:padding="16dp"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <ImageButton
+            android:id="@+id/cancelSelectionButton"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="8dp"
+            android:src="@drawable/ic_close"
+            app:tint="@color/textPrimary" />
+
+        <TextView
+            android:id="@+id/selectionCountText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="0 selected"
+            android:textColor="@color/textPrimary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/actionSelectedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:paddingHorizontal="16dp"
+            android:text="Remove"
+            android:textAllCaps="false"
+            android:textStyle="bold"
+            app:backgroundTint="@color/danger"
+            app:cornerRadius="16dp" />
+    </LinearLayout>
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/folderSwipeRefresh"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingTop="4dp" />
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/folderSongsRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingTop="4dp" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 </LinearLayout>

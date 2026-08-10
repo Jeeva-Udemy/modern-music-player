@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -24,6 +25,7 @@ class FoldersFragment : Fragment(R.layout.fragment_folders) {
     private lateinit var adapter: FolderAdapter
     private lateinit var moveButton: Button
     private lateinit var progressBar: ProgressBar
+    private lateinit var swipeRefresh: SwipeRefreshLayout
 
     // Set when the user taps Move but has to go grant "All files access"
     // first — so we can resume the move automatically once they're back,
@@ -48,6 +50,13 @@ class FoldersFragment : Fragment(R.layout.fragment_folders) {
         progressBar = view.findViewById(R.id.moveProgressBar)
 
         moveButton.setOnClickListener { confirmAndMoveFiles() }
+
+        swipeRefresh = view.findViewById(R.id.foldersSwipeRefresh)
+        swipeRefresh.setColorSchemeResources(R.color.accent)
+        swipeRefresh.setOnRefreshListener {
+            adapter.updateData(MusicRepository.loadFolders(requireContext()))
+            swipeRefresh.isRefreshing = false
+        }
     }
 
     override fun onResume() {

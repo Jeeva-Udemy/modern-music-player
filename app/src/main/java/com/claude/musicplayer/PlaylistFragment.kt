@@ -8,11 +8,13 @@ import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ListView
 import androidx.fragment.app.Fragment
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
 
     private lateinit var listView: ListView
     private lateinit var adapter: ArrayAdapter<String>
+    private lateinit var swipeRefresh: SwipeRefreshLayout
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -34,6 +36,13 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
 
         view.findViewById<View>(R.id.addPlaylistButton).setOnClickListener {
             showCreatePlaylistDialog()
+        }
+
+        swipeRefresh = view.findViewById(R.id.playlistSwipeRefresh)
+        swipeRefresh.setColorSchemeResources(R.color.accent)
+        swipeRefresh.setOnRefreshListener {
+            refresh()
+            swipeRefresh.isRefreshing = false
         }
     }
 
@@ -57,5 +66,10 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
         adapter.clear()
         adapter.addAll(PlaylistManager.getPlaylistNames(requireContext()))
         adapter.notifyDataSetChanged()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refresh()
     }
 }

@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@color/backgroundDark">
 
+    <!-- Normal header: title + search/select icons + sort chip -->
     <LinearLayout
+        android:id="@+id/normalHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
@@ -23,10 +26,30 @@
             android:textSize="22sp"
             android:textStyle="bold" />
 
+        <ImageButton
+            android:id="@+id/searchToggleButton"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="8dp"
+            android:src="@drawable/ic_search"
+            app:tint="@color/textPrimary" />
+
+        <ImageButton
+            android:id="@+id/selectModeButton"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="2dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="8dp"
+            android:src="@drawable/ic_select_mode"
+            app:tint="@color/textPrimary" />
+
         <TextView
             android:id="@+id/sortButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
             android:background="@drawable/bg_chip"
             android:paddingHorizontal="14dp"
             android:paddingVertical="8dp"
@@ -36,13 +59,85 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/songsRecyclerView"
+    <!-- Selection header: shown instead of normalHeader while selecting -->
+    <LinearLayout
+        android:id="@+id/selectionHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+
+        <ImageButton
+            android:id="@+id/cancelSelectionButton"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="8dp"
+            android:src="@drawable/ic_close"
+            app:tint="@color/textPrimary" />
+
+        <TextView
+            android:id="@+id/selectionCountText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="0 selected"
+            android:textColor="@color/textPrimary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/deleteSelectedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:paddingHorizontal="16dp"
+            android:text="Delete"
+            android:textAllCaps="false"
+            android:textStyle="bold"
+            app:backgroundTint="@color/danger"
+            app:cornerRadius="16dp"
+            app:icon="@drawable/ic_delete"
+            app:iconGravity="textStart" />
+    </LinearLayout>
+
+    <!-- Search bar: shown when the search icon is tapped -->
+    <EditText
+        android:id="@+id/searchEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_chip"
+        android:hint="Search songs or artists"
+        android:imeOptions="actionSearch"
+        android:inputType="text"
+        android:maxLines="1"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="10dp"
+        android:textColor="@color/textPrimary"
+        android:textColorHint="@color/textSecondary"
+        android:visibility="gone" />
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/songsSwipeRefresh"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingTop="4dp"
-        android:paddingBottom="8dp" />
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/songsRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingTop="4dp"
+            android:paddingBottom="8dp" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 </LinearLayout>

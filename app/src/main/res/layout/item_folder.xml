@@ -51,12 +51,23 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/folderPath"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:maxLines="1"
+                android:ellipsize="middle"
+                android:textColor="@color/textSecondary"
+                android:textSize="11sp" />
+
+            <TextView
                 android:id="@+id/folderCount"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:textColor="@color/textSecondary"
-                android:textSize="13sp" />
+                android:textColor="@color/accentSecondary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

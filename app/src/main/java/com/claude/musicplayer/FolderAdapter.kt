@@ -14,6 +14,7 @@ class FolderAdapter(
 
     class FolderViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.folderName)
+        val path: TextView = view.findViewById(R.id.folderPath)
         val count: TextView = view.findViewById(R.id.folderCount)
     }
 
@@ -23,10 +24,11 @@ class FolderAdapter(
     }
 
     override fun onBindViewHolder(holder: FolderViewHolder, position: Int) {
-        val (path, songs) = folders[position]
-        holder.name.text = File(path).name
+        val (fullPath, songs) = folders[position]
+        holder.name.text = File(fullPath).name
+        holder.path.text = fullPath
         holder.count.text = "${songs.size} songs"
-        holder.itemView.setOnClickListener { onClick(path, songs) }
+        holder.itemView.setOnClickListener { onClick(fullPath, songs) }
     }
 
     override fun getItemCount(): Int = folders.size

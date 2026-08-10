@@ -2,9 +2,12 @@ package com.claude.musicplayer
 
 import android.app.*
 import android.content.ContentUris
+import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Binder
@@ -48,6 +51,69 @@ class MusicService : Service() {
     private var mediaPlayer: MediaPlayer? = null
     private lateinit var mediaSession: MediaSessionCompat
     private var currentIndex = 0
+
+    private lateinit var audioManager: AudioManager
+    private var audioFocusRequest: AudioFocusRequest? = null
+    // True only when WE paused playback because of a focus loss (another
+    // app's audio, a phone call, etc.) — not when the user tapped pause
+    // themselves. Only in that case do we auto-resume on focus gain.
+    private var pausedDueToFocusLoss = false
+
+    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                // Long-term loss (another app is now the main audio owner) —
+                // pause and don't assume we should resume automatically.
+                pausedDueToFocusLoss = false
+                if (isPlaying()) pause()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                // Short-term loss — a call ringing, a notification sound, a
+                // video briefly grabbing audio. Pause and remember to resume.
+                if (isPlaying()) {
+                    pausedDueToFocusLoss = true
+                    pause()
+                }
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (pausedDueToFocusLoss) {
+                    pausedDueToFocusLoss = false
+                    resume()
+                }
+            }
+        }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(attrs)
+                .setOnAudioFocusChangeListener(audioFocusListener)
+                .build()
+            audioFocusRequest = request
+            audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(
+                audioFocusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN
+            ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(audioFocusListener)
+        }
+    }
+
     var shuffleEnabled = false
         private set
     var repeatEnabled = false
@@ -69,6 +135,7 @@ class MusicService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         createNotificationChannel()
         mediaSession = MediaSessionCompat(this, "MusicService").apply {
             setCallback(object : MediaSessionCompat.Callback() {
@@ -97,6 +164,20 @@ class MusicService : Service() {
     }
 
     fun playSongAt(index: Int) {
+        playSongAt(index, attemptsRemaining = currentQueue.size)
+    }
+
+    /**
+     * [attemptsRemaining] caps how many times we'll auto-skip a failing
+     * track before giving up — without it, a bad file (or a whole queue of
+     * bad files) could otherwise recurse indefinitely.
+     */
+    private fun playSongAt(index: Int, attemptsRemaining: Int) {
+        if (currentQueue.isEmpty()) return
+        if (attemptsRemaining <= 0) {
+            Toast.makeText(this, "None of the songs in this queue could be played.", Toast.LENGTH_LONG).show()
+            return
+        }
         if (index !in currentQueue.indices) return
         currentIndex = index
         val song = currentQueue[index]
@@ -105,6 +186,11 @@ class MusicService : Service() {
         mediaPlayer = null
 
         try {
+            if (!requestAudioFocus()) {
+                Toast.makeText(this, "Couldn't get audio focus — something else is using audio.", Toast.LENGTH_SHORT).show()
+                return
+            }
+            pausedDueToFocusLoss = false
             // Use the content:// URI (not the raw file path) — scoped storage
             // on Android 10+ blocks direct file-path access from other apps'
             // storage areas, which silently breaks setDataSource(path).
@@ -119,7 +205,8 @@ class MusicService : Service() {
                 setDataSource(applicationContext, uri)
                 setOnCompletionListener { playNext() }
                 setOnErrorListener { _, _, _ ->
-                    Toast.makeText(this@MusicService, "Couldn't play \"${song.title}\"", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MusicService, "Skipping \"${song.title}\" — couldn't play it", Toast.LENGTH_SHORT).show()
+                    skipForwardOnFailure(index, attemptsRemaining)
                     true
                 }
                 prepare()
@@ -129,8 +216,14 @@ class MusicService : Service() {
             updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
             startForeground(NOTIFICATION_ID, buildNotification(song, isPlaying = true))
         } catch (e: Exception) {
-            Toast.makeText(this, "Couldn't play \"${song.title}\": ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Skipping \"${song.title}\" — couldn't play it", Toast.LENGTH_SHORT).show()
+            skipForwardOnFailure(index, attemptsRemaining)
         }
+    }
+
+    private fun skipForwardOnFailure(failedIndex: Int, attemptsRemaining: Int) {
+        val next = computeNextIndex(failedIndex) ?: return
+        playSongAt(next, attemptsRemaining - 1)
     }
 
     /** The song currently loaded (playing or paused), if any. */
@@ -153,22 +246,31 @@ class MusicService : Service() {
     }
 
     fun playNext() {
-        if (currentQueue.isEmpty()) return
-        val nextIndex: Int = if (shuffleEnabled && currentQueue.size > 1) {
+        val next = computeNextIndex(currentIndex) ?: return
+        playSongAt(next)
+    }
+
+    /**
+     * Works out which index to advance to from [from], honoring shuffle/
+     * repeat. Returns null when there's nowhere to go (end of a
+     * non-repeating queue) — the caller should just stop in that case.
+     */
+    private fun computeNextIndex(from: Int): Int? {
+        if (currentQueue.isEmpty()) return null
+        return if (shuffleEnabled && currentQueue.size > 1) {
             var candidate: Int
             do {
                 candidate = currentQueue.indices.random()
-            } while (candidate == currentIndex)
+            } while (candidate == from)
             candidate
         } else {
-            val n = currentIndex + 1
+            val n = from + 1
             when {
                 n < currentQueue.size -> n
                 repeatEnabled -> 0
-                else -> return // reached the end, not repeating — just stop
+                else -> null
             }
         }
-        playSongAt(nextIndex)
     }
 
     fun playPrevious() {
@@ -303,6 +405,7 @@ class MusicService : Service() {
     }
 
     override fun onDestroy() {
+        abandonAudioFocus()
         mediaPlayer?.release()
         mediaSession.release()
         super.onDestroy()
