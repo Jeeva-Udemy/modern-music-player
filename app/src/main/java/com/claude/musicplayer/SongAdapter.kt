@@ -8,6 +8,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.card.MaterialCardView
 import java.util.concurrent.TimeUnit
 
 /**
@@ -17,6 +18,9 @@ import java.util.concurrent.TimeUnit
  * Selection mode (checkboxes + a "more" menu button) is opt-in per screen:
  * pass [isSelectionMode] etc. to enable multi-select (used for delete /
  * remove-from-playlist flows); leave the defaults for a plain tap-to-play list.
+ *
+ * Pass [nowPlayingPath] to highlight whichever row is currently playing —
+ * defaults to no-highlight for screens that don't track it.
  */
 class SongAdapter(
     private var songs: List<Song>,
@@ -25,16 +29,20 @@ class SongAdapter(
     private val onMoreClick: ((Int, View) -> Unit)? = null,
     private val isSelectionMode: () -> Boolean = { false },
     private val isSelected: (Song) -> Boolean = { false },
-    private val onToggleSelect: (Song) -> Unit = {}
+    private val onToggleSelect: (Song) -> Unit = {},
+    private val nowPlayingPath: () -> String? = { null },
+    private val nowPlayingActive: () -> Boolean = { false }
 ) : RecyclerView.Adapter<SongAdapter.SongViewHolder>() {
 
     class SongViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val card: MaterialCardView = view as MaterialCardView
         val title: TextView = view.findViewById(R.id.songTitle)
         val subtitle: TextView = view.findViewById(R.id.songSubtitle)
         val art: ImageView = view.findViewById(R.id.songArt)
         val duration: TextView = view.findViewById(R.id.songDuration)
         val checkbox: CheckBox = view.findViewById(R.id.songCheckbox)
         val moreButton: ImageButton = view.findViewById(R.id.songMore)
+        val nowPlayingIcon: ImageView = view.findViewById(R.id.songNowPlayingIcon)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {
@@ -65,7 +73,26 @@ class SongAdapter(
         val selectionActive = isSelectionMode()
         holder.checkbox.visibility = if (selectionActive) View.VISIBLE else View.GONE
         holder.moreButton.visibility = if (selectionActive || onMoreClick == null) View.GONE else View.VISIBLE
-        holder.duration.visibility = if (selectionActive) View.GONE else View.VISIBLE
+
+        // Highlight whichever song is currently loaded in the player — the
+        // only way to tell otherwise was the mini player bar, which isn't
+        // visible while scrolling through a long list.
+        val isNowPlaying = song.path == nowPlayingPath() && nowPlayingPath() != null
+        if (isNowPlaying) {
+            holder.card.strokeColor = holder.itemView.context.getColor(R.color.accent)
+            holder.card.strokeWidth = holder.itemView.resources.getDimensionPixelSize(R.dimen.now_playing_stroke_width)
+            holder.title.setTextColor(holder.itemView.context.getColor(R.color.accent))
+            holder.nowPlayingIcon.visibility = View.VISIBLE
+            holder.nowPlayingIcon.setImageResource(
+                if (nowPlayingActive()) R.drawable.ic_equalizer else R.drawable.ic_play
+            )
+            holder.duration.visibility = View.GONE
+        } else {
+            holder.card.strokeWidth = 0
+            holder.title.setTextColor(holder.itemView.context.getColor(R.color.textPrimary))
+            holder.nowPlayingIcon.visibility = View.GONE
+            holder.duration.visibility = if (selectionActive) View.GONE else View.VISIBLE
+        }
 
         holder.checkbox.setOnCheckedChangeListener(null)
         holder.checkbox.isChecked = isSelected(song)
@@ -96,6 +123,11 @@ class SongAdapter(
 
     /** Call after selection mode or the selected set changes, to redraw checkboxes/menus. */
     fun refreshSelectionUi() {
+        notifyDataSetChanged()
+    }
+
+    /** Call when the currently-playing song or its play/pause state changes. */
+    fun refreshNowPlaying() {
         notifyDataSetChanged()
     }
 

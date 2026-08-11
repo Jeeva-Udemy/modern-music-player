@@ -45,6 +45,11 @@ class MusicService : Service() {
         // which crashes the app with TransactionTooLargeException — this
         // avoids that entirely since no serialization happens.
         var currentQueue: List<Song> = emptyList()
+
+        // Cheap, poll-friendly playback state for list screens to highlight
+        // the currently playing row without needing to bind the service.
+        var nowPlayingPath: String? = null
+        var nowPlayingIsActive: Boolean = false
     }
 
     private val binder = LocalBinder()
@@ -215,6 +220,8 @@ class MusicService : Service() {
             updateMetadata(song)
             updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
             startForeground(NOTIFICATION_ID, buildNotification(song, isPlaying = true))
+            nowPlayingPath = song.path
+            nowPlayingIsActive = true
         } catch (e: Exception) {
             Toast.makeText(this, "Skipping \"${song.title}\" — couldn't play it", Toast.LENGTH_SHORT).show()
             skipForwardOnFailure(index, attemptsRemaining)
@@ -232,6 +239,7 @@ class MusicService : Service() {
     fun resume() {
         mediaPlayer?.start()
         updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
+        nowPlayingIsActive = true
         currentQueue.getOrNull(currentIndex)?.let {
             startForeground(NOTIFICATION_ID, buildNotification(it, isPlaying = true))
         }
@@ -240,6 +248,7 @@ class MusicService : Service() {
     fun pause() {
         mediaPlayer?.pause()
         updatePlaybackState(PlaybackStateCompat.STATE_PAUSED)
+        nowPlayingIsActive = false
         currentQueue.getOrNull(currentIndex)?.let {
             startForeground(NOTIFICATION_ID, buildNotification(it, isPlaying = false))
         }

@@ -63,7 +63,9 @@ class PlaylistSongsActivity : AppCompatActivity() {
             onToggleSelect = { song ->
                 if (!selectedPaths.remove(song.path)) selectedPaths.add(song.path)
                 updateSelectionUi()
-            }
+            },
+            nowPlayingPath = { MusicService.nowPlayingPath },
+            nowPlayingActive = { MusicService.nowPlayingIsActive }
         )
         recyclerView.adapter = adapter
 

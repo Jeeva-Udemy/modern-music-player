@@ -66,6 +66,8 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
         adapter.clear()
         adapter.addAll(PlaylistManager.getPlaylistNames(requireContext()))
         adapter.notifyDataSetChanged()
+        view?.findViewById<View>(R.id.portabilityHint)?.visibility =
+            if (PlaylistManager.isPortable()) View.GONE else View.VISIBLE
     }
 
     override fun onResume() {

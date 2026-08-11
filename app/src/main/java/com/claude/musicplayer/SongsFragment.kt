@@ -5,6 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
@@ -41,6 +43,22 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     private val selectedPaths = mutableSetOf<String>()
     private var pendingDeleteAfterPermission = false
 
+    private val handler = Handler(Looper.getMainLooper())
+    private var lastNowPlayingPath: String? = null
+    private var lastNowPlayingActive: Boolean = false
+    private val nowPlayingPoller = object : Runnable {
+        override fun run() {
+            val path = MusicService.nowPlayingPath
+            val active = MusicService.nowPlayingIsActive
+            if (path != lastNowPlayingPath || active != lastNowPlayingActive) {
+                lastNowPlayingPath = path
+                lastNowPlayingActive = active
+                adapter.refreshNowPlaying()
+            }
+            handler.postDelayed(this, 500)
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val recyclerView = view.findViewById<RecyclerView>(R.id.songsRecyclerView)
@@ -71,7 +89,9 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
             onToggleSelect = { song ->
                 if (!selectedPaths.remove(song.path)) selectedPaths.add(song.path)
                 updateSelectionUi()
-            }
+            },
+            nowPlayingPath = { MusicService.nowPlayingPath },
+            nowPlayingActive = { MusicService.nowPlayingIsActive }
         )
         recyclerView.adapter = adapter
 
@@ -102,12 +122,18 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
 
     override fun onResume() {
         super.onResume()
+        handler.post(nowPlayingPoller)
         if (pendingDeleteAfterPermission && FileOrganizer.hasFullStorageAccess()) {
             pendingDeleteAfterPermission = false
             performDelete(selectedPaths.toList())
         } else if (!pendingDeleteAfterPermission) {
             refresh()
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(nowPlayingPoller)
     }
 
     private fun toggleSearch() {
