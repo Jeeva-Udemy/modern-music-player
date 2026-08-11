@@ -36,7 +36,7 @@
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="4dp"
-        android:text="Grant \"All files access\" (Folders tab) so playlists survive reinstalls and work in other music apps."
+        android:text="Grant &quot;All files access&quot; (Folders tab) so playlists survive reinstalls and work in other music apps."
         android:textColor="@color/textSecondary"
         android:textSize="12sp"
         android:visibility="gone" />
