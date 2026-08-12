@@ -2,8 +2,12 @@ package com.claude.musicplayer
 
 import android.app.AlertDialog
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -25,9 +29,26 @@ class PlaylistSongsActivity : AppCompatActivity() {
     private lateinit var selectionCountText: TextView
     private lateinit var actionButton: MaterialButton
     private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var miniPlayer: MiniPlayerController
 
     private var selectionMode = false
     private val selectedPaths = mutableSetOf<String>()
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var lastNowPlayingPath: String? = null
+    private var lastNowPlayingActive: Boolean = false
+    private val nowPlayingPoller = object : Runnable {
+        override fun run() {
+            val path = MusicService.nowPlayingPath
+            val active = MusicService.nowPlayingIsActive
+            if (path != lastNowPlayingPath || active != lastNowPlayingActive) {
+                lastNowPlayingPath = path
+                lastNowPlayingActive = active
+                adapter.refreshNowPlaying()
+            }
+            handler.postDelayed(this, 500)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,7 +75,10 @@ class PlaylistSongsActivity : AppCompatActivity() {
         adapter = SongAdapter(
             loadSongs(),
             onClick = { position ->
-                // Play starting from whichever song was tapped, not always from the top.
+                // Play starting from whichever song was tapped, not always from
+                // the top — and if it's already the one playing, this just
+                // opens the player instead of restarting it (handled inside
+                // PlaybackController).
                 PlaybackController.playAndOpenNowPlaying(this, adapter.currentList(), position)
             },
             onLongClick = { position -> confirmRemoveSingle(adapter.currentList()[position]) },
@@ -74,11 +98,35 @@ class PlaylistSongsActivity : AppCompatActivity() {
             adapter.updateData(loadSongs())
             swipeRefresh.isRefreshing = false
         }
+
+        miniPlayer = MiniPlayerController(
+            context = this,
+            miniPlayerBar = findViewById(R.id.miniPlayerBar),
+            titleView = findViewById(R.id.nowPlayingTitle),
+            artistView = findViewById(R.id.nowPlayingArtist),
+            artView = findViewById<ImageView>(R.id.miniArt),
+            playPauseButton = findViewById(R.id.playPauseButton),
+            prevButton = findViewById(R.id.prevButton),
+            nextButton = findViewById(R.id.nextButton),
+            seekBar = findViewById<SeekBar>(R.id.miniSeekBar)
+        )
+        miniPlayer.start()
     }
 
     override fun onResume() {
         super.onResume()
+        handler.post(nowPlayingPoller)
         adapter.updateData(loadSongs())
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(nowPlayingPoller)
+    }
+
+    override fun onDestroy() {
+        miniPlayer.stop()
+        super.onDestroy()
     }
 
     private fun loadSongs(): List<Song> {

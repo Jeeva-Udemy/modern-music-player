@@ -116,8 +116,11 @@ object PlaylistManager {
     }
 
     fun getSongsInPlaylist(context: Context, playlistName: String, allSongs: List<Song>): List<Song> {
-        val paths = getSongPaths(context, playlistName).toSet()
-        return allSongs.filter { it.path in paths }
+        // Preserve the order songs were added in (not allSongs' own sort
+        // order) — map each stored path back to its Song, in that order.
+        val paths = getSongPaths(context, playlistName)
+        val byPath = allSongs.associateBy { it.path }
+        return paths.mapNotNull { byPath[it] }
     }
 
     /** True once playlists are actually being written as portable files, not just cached locally. */

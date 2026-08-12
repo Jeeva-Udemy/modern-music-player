@@ -5,9 +5,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.View
 import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -34,10 +38,27 @@ class FolderSongsActivity : AppCompatActivity() {
     private lateinit var selectionCountText: TextView
     private lateinit var actionButton: MaterialButton
     private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var miniPlayer: MiniPlayerController
 
     private var selectionMode = false
     private val selectedPaths = mutableSetOf<String>()
     private var pendingDeleteAfterPermission = false
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var lastNowPlayingPath: String? = null
+    private var lastNowPlayingActive: Boolean = false
+    private val nowPlayingPoller = object : Runnable {
+        override fun run() {
+            val path = MusicService.nowPlayingPath
+            val active = MusicService.nowPlayingIsActive
+            if (path != lastNowPlayingPath || active != lastNowPlayingActive) {
+                lastNowPlayingPath = path
+                lastNowPlayingActive = active
+                adapter.refreshNowPlaying()
+            }
+            handler.postDelayed(this, 500)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,16 +106,40 @@ class FolderSongsActivity : AppCompatActivity() {
             adapter.updateData(loadSongs())
             swipeRefresh.isRefreshing = false
         }
+
+        miniPlayer = MiniPlayerController(
+            context = this,
+            miniPlayerBar = findViewById(R.id.miniPlayerBar),
+            titleView = findViewById(R.id.nowPlayingTitle),
+            artistView = findViewById(R.id.nowPlayingArtist),
+            artView = findViewById<ImageView>(R.id.miniArt),
+            playPauseButton = findViewById(R.id.playPauseButton),
+            prevButton = findViewById(R.id.prevButton),
+            nextButton = findViewById(R.id.nextButton),
+            seekBar = findViewById<SeekBar>(R.id.miniSeekBar)
+        )
+        miniPlayer.start()
     }
 
     override fun onResume() {
         super.onResume()
+        handler.post(nowPlayingPoller)
         if (pendingDeleteAfterPermission && FileOrganizer.hasFullStorageAccess()) {
             pendingDeleteAfterPermission = false
             performDelete(selectedPaths.toList())
         } else if (!pendingDeleteAfterPermission) {
             adapter.updateData(loadSongs())
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(nowPlayingPoller)
+    }
+
+    override fun onDestroy() {
+        miniPlayer.stop()
+        super.onDestroy()
     }
 
     private fun loadSongs(): List<Song> = MusicRepository.loadFolders(this)[folderPath] ?: emptyList()
