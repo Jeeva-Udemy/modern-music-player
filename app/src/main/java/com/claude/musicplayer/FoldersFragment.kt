@@ -71,9 +71,10 @@ class FoldersFragment : Fragment(R.layout.fragment_folders) {
 
     private fun confirmAndMoveFiles() {
         AlertDialog.Builder(requireContext())
-            .setTitle("Move all MP3s to Music folder?")
+            .setTitle("Move all audio files to Music folder?")
             .setMessage(
-                "This finds every .mp3 file on your device's storage and moves " +
+                "This finds every supported audio file (MP3, M4A, AAC, WAV, FLAC, " +
+                        "OGG, Opus, WMA, and more) on your device's storage and moves " +
                         "it into a single \"Music\" folder. This cannot be undone."
             )
             .setPositiveButton("Move") { _, _ ->
@@ -110,7 +111,7 @@ class FoldersFragment : Fragment(R.layout.fragment_folders) {
         CoroutineScope(Dispatchers.Main).launch {
             val result = try {
                 withContext(Dispatchers.IO) {
-                    FileOrganizer.moveAllMp3sToMusicFolder(requireContext())
+                    FileOrganizer.moveAllAudioFilesToMusicFolder(requireContext())
                 }
             } catch (e: Exception) {
                 null

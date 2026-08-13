@@ -10,13 +10,18 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 
 /**
- * Moves every .mp3 file found anywhere on external storage into a single
- * target folder (default: /storage/emulated/0/Music).
+ * Moves every supported audio file found anywhere on external storage into
+ * a single target folder (default: /storage/emulated/0/Music).
  *
  * Requires MANAGE_EXTERNAL_STORAGE (Android 11+) or WRITE_EXTERNAL_STORAGE
  * (Android 10 and below) to be granted before calling.
  */
 object FileOrganizer {
+
+    /** Every common audio container this covers, not just .mp3. */
+    val SUPPORTED_AUDIO_EXTENSIONS = setOf(
+        "mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma", "amr", "mid", "midi", "3gp"
+    )
 
     data class Result(
         val moved: Int,
@@ -33,11 +38,11 @@ object FileOrganizer {
     }
 
     /**
-     * Walks external storage, finds every *.mp3, and moves files that are
-     * not already inside the target folder into it. Runs synchronously —
-     * call from a background thread.
+     * Walks external storage, finds every supported audio file, and moves
+     * files that are not already inside the target folder into it. Runs
+     * synchronously — call from a background thread.
      */
-    fun moveAllMp3sToMusicFolder(context: Context): Result {
+    fun moveAllAudioFilesToMusicFolder(context: Context): Result {
         val targetDir = targetMusicFolder()
         val root = Environment.getExternalStorageDirectory()
 
@@ -46,15 +51,15 @@ object FileOrganizer {
         var failed = 0
         val failedPaths = mutableListOf<String>()
 
-        val mp3Files = mutableListOf<File>()
+        val audioFiles = mutableListOf<File>()
         try {
-            collectMp3Files(root, targetDir, mp3Files)
+            collectAudioFiles(root, audioFiles)
         } catch (e: Exception) {
             // Even if the scan is interrupted partway, process whatever was
             // found instead of losing all progress.
         }
 
-        for (file in mp3Files) {
+        for (file in audioFiles) {
             try {
                 // Already in the target folder — nothing to do.
                 if (file.parentFile?.absolutePath == targetDir.absolutePath) {
@@ -108,7 +113,7 @@ object FileOrganizer {
         return Result(moved, skipped, failed, targetDir.absolutePath, failedPaths)
     }
 
-    private fun collectMp3Files(dir: File, targetDir: File, out: MutableList<File>) {
+    private fun collectAudioFiles(dir: File, out: MutableList<File>) {
         // Never crash the whole scan because one folder is unreadable —
         // skip it and keep going.
         val children = try {
@@ -123,8 +128,8 @@ object FileOrganizer {
                     // Skip Android's private sandbox — inaccessible even with
                     // "All files access" and would just throw.
                     if (child.name == "Android") continue
-                    collectMp3Files(child, targetDir, out)
-                } else if (child.name.endsWith(".mp3", ignoreCase = true)) {
+                    collectAudioFiles(child, out)
+                } else if (SUPPORTED_AUDIO_EXTENSIONS.contains(child.extension.lowercase())) {
                     out.add(child)
                 }
             } catch (e: Exception) {
@@ -159,10 +164,24 @@ object FileOrganizer {
         }
     }
 
+    private fun mimeTypeFor(extension: String): String = when (extension.lowercase()) {
+        "mp3" -> "audio/mpeg"
+        "m4a", "aac" -> "audio/mp4"
+        "wav" -> "audio/x-wav"
+        "flac" -> "audio/flac"
+        "ogg", "opus" -> "audio/ogg"
+        "wma" -> "audio/x-ms-wma"
+        "amr" -> "audio/amr"
+        "mid", "midi" -> "audio/midi"
+        "3gp" -> "audio/3gpp"
+        else -> "audio/*"
+    }
+
     private fun rescanFile(context: Context, file: File) {
+        val mimeType = mimeTypeFor(file.extension)
         val values = ContentValues().apply {
             put(MediaStore.Audio.Media.DATA, file.absolutePath)
-            put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg")
+            put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
         }
         try {
             context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
@@ -170,7 +189,7 @@ object FileOrganizer {
             // Some OEMs throw if the row already exists; safe to ignore.
         }
         android.media.MediaScannerConnection.scanFile(
-            context, arrayOf(file.absolutePath), arrayOf("audio/mpeg"), null
+            context, arrayOf(file.absolutePath), arrayOf(mimeType), null
         )
     }
 

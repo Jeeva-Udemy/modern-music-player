@@ -9,7 +9,7 @@ class MainPagerAdapter(activity: FragmentActivity) : FragmentStateAdapter(activi
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            0 -> SongsFragment()
+            0 -> SongsFragment.forAllSongs()
             1 -> PlaylistFragment()
             2 -> FoldersFragment()
             else -> DuplicatesFragment()

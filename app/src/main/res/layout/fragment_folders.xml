@@ -22,7 +22,7 @@
         android:layout_height="wrap_content"
         android:layout_margin="14dp"
         android:paddingVertical="12dp"
-        android:text="Move all MP3s to Music folder"
+        android:text="Move all audio files to Music folder"
         android:textAllCaps="false"
         android:textStyle="bold"
         app:backgroundTint="@color/accent"

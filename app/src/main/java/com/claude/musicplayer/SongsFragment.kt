@@ -25,7 +25,29 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * A single reusable song-list screen: search, sort, tap-to-play, multi-select
+ * with a bulk action, a per-row "more" menu, and live now-playing highlight.
+ *
+ * Used two ways from the same code, via the factory functions below:
+ *  - [forAllSongs] — the Songs tab (bulk/row action is "Delete from device").
+ *  - [forPlaylist] — a playlist's contents (bulk/row action is "Remove from
+ *    playlist", with "Delete from device" also offered per-row for parity).
+ */
 class SongsFragment : Fragment(R.layout.fragment_songs) {
+
+    companion object {
+        private const val ARG_PLAYLIST_NAME = "arg_playlist_name"
+
+        fun forAllSongs(): SongsFragment = SongsFragment()
+
+        fun forPlaylist(playlistName: String): SongsFragment = SongsFragment().apply {
+            arguments = Bundle().apply { putString(ARG_PLAYLIST_NAME, playlistName) }
+        }
+    }
+
+    private val playlistName: String? get() = arguments?.getString(ARG_PLAYLIST_NAME)
+    private val isPlaylistMode: Boolean get() = playlistName != null
 
     private var allSongs: List<Song> = emptyList()
     private lateinit var adapter: SongAdapter
@@ -35,7 +57,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     private lateinit var normalHeader: View
     private lateinit var selectionHeader: View
     private lateinit var selectionCountText: TextView
-    private lateinit var deleteButton: View
+    private lateinit var bulkActionButton: TextView
     private lateinit var searchEditText: EditText
     private lateinit var swipeRefresh: SwipeRefreshLayout
 
@@ -67,17 +89,28 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         normalHeader = view.findViewById(R.id.normalHeader)
         selectionHeader = view.findViewById(R.id.selectionHeader)
         selectionCountText = view.findViewById(R.id.selectionCountText)
-        deleteButton = view.findViewById(R.id.deleteSelectedButton)
+        bulkActionButton = view.findViewById(R.id.deleteSelectedButton)
         searchEditText = view.findViewById(R.id.searchEditText)
         swipeRefresh = view.findViewById(R.id.songsSwipeRefresh)
 
-        currentSortId = SortPreference.load(requireContext())
+        view.findViewById<TextView>(R.id.headerTitle).text = playlistName ?: "Your Music"
+        val backButton = view.findViewById<ImageButton>(R.id.songsBackButton)
+        if (isPlaylistMode) {
+            backButton.visibility = View.VISIBLE
+            backButton.setOnClickListener { requireActivity().finish() }
+        } else {
+            backButton.visibility = View.GONE
+        }
+
+        bulkActionButton.text = if (isPlaylistMode) "Remove" else "Delete"
+        currentSortId = if (isPlaylistMode) R.id.sort_playlist_order else SortPreference.load(requireContext())
 
         adapter = SongAdapter(
             songs = emptyList(),
             onClick = { position ->
-                // Tapping a song just plays it now — the full player only
-                // opens from tapping the mini player bar at the bottom.
+                // Tapping a song just plays it — the full player only opens
+                // from tapping the mini player bar. Same behavior for the
+                // Songs tab and inside a playlist.
                 PlaybackController.play(requireContext(), adapter.currentList(), position)
             },
             onLongClick = { position ->
@@ -100,7 +133,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         view.findViewById<ImageButton>(R.id.searchToggleButton).setOnClickListener { toggleSearch() }
         view.findViewById<ImageButton>(R.id.selectModeButton).setOnClickListener { enterSelectionMode() }
         view.findViewById<ImageButton>(R.id.cancelSelectionButton).setOnClickListener { exitSelectionMode() }
-        deleteButton.setOnClickListener { confirmDeleteSelected() }
+        bulkActionButton.setOnClickListener { confirmBulkAction() }
 
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -125,7 +158,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         handler.post(nowPlayingPoller)
         if (pendingDeleteAfterPermission && FileOrganizer.hasFullStorageAccess()) {
             pendingDeleteAfterPermission = false
-            performDelete(selectedPaths.toList())
+            performDeleteFromDevice(selectedPaths.toList())
         } else if (!pendingDeleteAfterPermission) {
             refresh()
         }
@@ -134,6 +167,16 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(nowPlayingPoller)
+    }
+
+    private fun loadSongsSource(): List<Song> {
+        val library = MusicRepository.loadAllSongs(requireContext())
+        return if (isPlaylistMode) {
+            val name = playlistName ?: return emptyList()
+            PlaylistManager.getSongsInPlaylist(requireContext(), name, library)
+        } else {
+            library
+        }
     }
 
     private fun toggleSearch() {
@@ -164,25 +207,46 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
 
     private fun updateSelectionUi() {
         selectionCountText.text = "${selectedPaths.size} selected"
-        deleteButton.isEnabled = selectedPaths.isNotEmpty()
+        bulkActionButton.isEnabled = selectedPaths.isNotEmpty()
         adapter.refreshSelectionUi()
     }
 
     private fun showRowMenu(song: Song, anchor: View) {
         val popup = PopupMenu(requireContext(), anchor)
-        popup.menu.add("Add to Playlist")
-        popup.menu.add("Delete")
+        if (isPlaylistMode) {
+            popup.menu.add("Add to Another Playlist")
+            popup.menu.add("Remove from this Playlist")
+            popup.menu.add("Delete from Device")
+        } else {
+            popup.menu.add("Add to Playlist")
+            popup.menu.add("Delete")
+        }
         popup.setOnMenuItemClickListener { item ->
             when (item.title) {
-                "Add to Playlist" -> PlaylistDialogHelper.showAddToPlaylistDialog(requireContext(), song)
-                "Delete" -> confirmDeleteSingle(song)
+                "Add to Playlist", "Add to Another Playlist" ->
+                    PlaylistDialogHelper.showAddToPlaylistDialog(requireContext(), song)
+                "Remove from this Playlist" -> confirmRemoveSingleFromPlaylist(song)
+                "Delete", "Delete from Device" -> confirmDeleteSingleFromDevice(song)
             }
             true
         }
         popup.show()
     }
 
-    private fun confirmDeleteSingle(song: Song) {
+    private fun confirmRemoveSingleFromPlaylist(song: Song) {
+        val name = playlistName ?: return
+        AlertDialog.Builder(requireContext())
+            .setTitle("Remove from playlist?")
+            .setMessage("Remove \"${song.title}\" from \"$name\"? The file itself won't be deleted.")
+            .setPositiveButton("Remove") { _, _ ->
+                PlaylistManager.removeSongFromPlaylist(requireContext(), name, song.path)
+                refresh()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmDeleteSingleFromDevice(song: Song) {
         AlertDialog.Builder(requireContext())
             .setTitle("Delete \"${song.title}\"?")
             .setMessage("This permanently deletes the file from your device. This cannot be undone.")
@@ -194,27 +258,37 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
                     requestAllFilesAccess()
                     return@setPositiveButton
                 }
-                performDelete(listOf(song.path))
+                performDeleteFromDevice(listOf(song.path))
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private fun confirmDeleteSelected() {
+    private fun confirmBulkAction() {
         if (selectedPaths.isEmpty()) return
-        AlertDialog.Builder(requireContext())
-            .setTitle("Delete ${selectedPaths.size} file(s)?")
-            .setMessage("These files will be permanently deleted from your device. This cannot be undone.")
-            .setPositiveButton("Delete") { _, _ ->
-                if (!FileOrganizer.hasFullStorageAccess()) {
-                    pendingDeleteAfterPermission = true
-                    requestAllFilesAccess()
-                    return@setPositiveButton
+        if (isPlaylistMode) {
+            val name = playlistName ?: return
+            AlertDialog.Builder(requireContext())
+                .setTitle("Remove ${selectedPaths.size} song(s)?")
+                .setMessage("They'll be removed from \"$name\". The files themselves won't be deleted.")
+                .setPositiveButton("Remove") { _, _ -> performRemoveFromPlaylist(selectedPaths.toList()) }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } else {
+            AlertDialog.Builder(requireContext())
+                .setTitle("Delete ${selectedPaths.size} file(s)?")
+                .setMessage("These files will be permanently deleted from your device. This cannot be undone.")
+                .setPositiveButton("Delete") { _, _ ->
+                    if (!FileOrganizer.hasFullStorageAccess()) {
+                        pendingDeleteAfterPermission = true
+                        requestAllFilesAccess()
+                        return@setPositiveButton
+                    }
+                    performDeleteFromDevice(selectedPaths.toList())
                 }
-                performDelete(selectedPaths.toList())
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
     }
 
     private fun requestAllFilesAccess() {
@@ -231,12 +305,28 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         }
     }
 
-    private fun performDelete(paths: List<String>) {
+    private fun performRemoveFromPlaylist(paths: List<String>) {
+        val name = playlistName ?: return
+        for (path in paths) {
+            PlaylistManager.removeSongFromPlaylist(requireContext(), name, path)
+        }
+        Toast.makeText(requireContext(), "Removed ${paths.size} song(s).", Toast.LENGTH_SHORT).show()
+        if (selectionMode) exitSelectionMode()
+        refresh()
+    }
+
+    private fun performDeleteFromDevice(paths: List<String>) {
         CoroutineScope(Dispatchers.Main).launch {
             val deletedCount = withContext(Dispatchers.IO) {
                 var count = 0
                 for (path in paths) {
-                    if (FileOrganizer.deleteFile(requireContext(), path)) count++
+                    if (FileOrganizer.deleteFile(requireContext(), path)) {
+                        count++
+                        // Don't leave a dangling reference to a file that no longer exists.
+                        if (isPlaylistMode) {
+                            playlistName?.let { PlaylistManager.removeSongFromPlaylist(requireContext(), it, path) }
+                        }
+                    }
                 }
                 count
             }
@@ -248,10 +338,11 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
 
     private fun showSortMenu(anchor: View) {
         val popup = PopupMenu(requireContext(), anchor)
-        popup.menuInflater.inflate(R.menu.sort_menu, popup.menu)
+        val menuRes = if (isPlaylistMode) R.menu.sort_menu_playlist else R.menu.sort_menu
+        popup.menuInflater.inflate(menuRes, popup.menu)
         popup.setOnMenuItemClickListener { item ->
             currentSortId = item.itemId
-            SortPreference.save(requireContext(), currentSortId)
+            if (!isPlaylistMode) SortPreference.save(requireContext(), currentSortId)
             applyFiltersAndSort()
             true
         }
@@ -266,7 +357,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
             R.id.sort_duration -> songs.sortedBy { it.duration }
             R.id.sort_newest -> songs.sortedByDescending { it.dateAdded }
             R.id.sort_oldest -> songs.sortedBy { it.dateAdded }
-            else -> songs
+            else -> songs // R.id.sort_playlist_order (or unknown) — keep insertion order as-is
         }
     }
 
@@ -281,8 +372,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     }
 
     fun refresh() {
-        allSongs = MusicRepository.loadAllSongs(requireContext())
-        // Selections for songs that no longer exist (e.g. just deleted) are dropped.
+        allSongs = loadSongsSource()
         val stillValidPaths = allSongs.map { it.path }.toSet()
         selectedPaths.retainAll(stillValidPaths)
         applyFiltersAndSort()
