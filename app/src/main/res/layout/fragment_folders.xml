@@ -20,7 +20,8 @@
         android:id="@+id/moveMp3sButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="14dp"
+        android:layout_marginHorizontal="14dp"
+        android:layout_marginTop="14dp"
         android:paddingVertical="12dp"
         android:text="Move all audio files to Music folder"
         android:textAllCaps="false"
@@ -29,6 +30,22 @@
         app:cornerRadius="16dp"
         app:icon="@drawable/ic_folder"
         app:iconGravity="textStart" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/importFolderButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="14dp"
+        android:paddingVertical="12dp"
+        android:text="Import from another app's folder (e.g. WhatsApp)"
+        android:textAllCaps="false"
+        android:textStyle="bold"
+        app:backgroundTint="@color/surfaceElevated"
+        app:cornerRadius="16dp"
+        app:icon="@drawable/ic_playlist_add"
+        app:iconGravity="textStart"
+        app:iconTint="@color/accentSecondary"
+        app:strokeColor="@color/accentSecondary" />
 
     <ProgressBar
         android:id="@+id/moveProgressBar"

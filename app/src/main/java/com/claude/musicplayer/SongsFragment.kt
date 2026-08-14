@@ -16,6 +16,7 @@ import android.widget.ImageButton
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -27,7 +28,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * A single reusable song-list screen: search, sort, tap-to-play, multi-select
- * with a bulk action, a per-row "more" menu, and live now-playing highlight.
+ * with bulk actions, a per-row "more" menu, and live now-playing highlight.
  *
  * Used two ways from the same code, via the factory functions below:
  *  - [forAllSongs] — the Songs tab (bulk/row action is "Delete from device").
@@ -58,12 +59,21 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     private lateinit var selectionHeader: View
     private lateinit var selectionCountText: TextView
     private lateinit var bulkActionButton: TextView
+    private lateinit var addSelectedToPlaylistButton: ImageButton
     private lateinit var searchEditText: EditText
     private lateinit var swipeRefresh: SwipeRefreshLayout
 
     private var selectionMode = false
     private val selectedPaths = mutableSetOf<String>()
     private var pendingDeleteAfterPermission = false
+
+    // Pressing system Back while selecting should exit selection mode
+    // first, not close the whole screen/app.
+    private val backPressedCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            exitSelectionMode()
+        }
+    }
 
     private val handler = Handler(Looper.getMainLooper())
     private var lastNowPlayingPath: String? = null
@@ -86,10 +96,13 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         val recyclerView = view.findViewById<RecyclerView>(R.id.songsRecyclerView)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
 
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backPressedCallback)
+
         normalHeader = view.findViewById(R.id.normalHeader)
         selectionHeader = view.findViewById(R.id.selectionHeader)
         selectionCountText = view.findViewById(R.id.selectionCountText)
         bulkActionButton = view.findViewById(R.id.deleteSelectedButton)
+        addSelectedToPlaylistButton = view.findViewById(R.id.addSelectedToPlaylistButton)
         searchEditText = view.findViewById(R.id.searchEditText)
         swipeRefresh = view.findViewById(R.id.songsSwipeRefresh)
 
@@ -134,6 +147,12 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         view.findViewById<ImageButton>(R.id.selectModeButton).setOnClickListener { enterSelectionMode() }
         view.findViewById<ImageButton>(R.id.cancelSelectionButton).setOnClickListener { exitSelectionMode() }
         bulkActionButton.setOnClickListener { confirmBulkAction() }
+        addSelectedToPlaylistButton.setOnClickListener {
+            val songs = adapter.currentList().filter { it.path in selectedPaths }
+            if (songs.isNotEmpty()) {
+                PlaylistDialogHelper.showAddToPlaylistDialog(requireContext(), songs)
+            }
+        }
 
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -194,6 +213,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         selectedPaths.clear()
         normalHeader.visibility = View.GONE
         selectionHeader.visibility = View.VISIBLE
+        backPressedCallback.isEnabled = true
         updateSelectionUi()
     }
 
@@ -202,12 +222,14 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         selectedPaths.clear()
         normalHeader.visibility = View.VISIBLE
         selectionHeader.visibility = View.GONE
+        backPressedCallback.isEnabled = false
         adapter.refreshSelectionUi()
     }
 
     private fun updateSelectionUi() {
         selectionCountText.text = "${selectedPaths.size} selected"
         bulkActionButton.isEnabled = selectedPaths.isNotEmpty()
+        addSelectedToPlaylistButton.isEnabled = selectedPaths.isNotEmpty()
         adapter.refreshSelectionUi()
     }
 
@@ -216,15 +238,18 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         if (isPlaylistMode) {
             popup.menu.add("Add to Another Playlist")
             popup.menu.add("Remove from this Playlist")
+            popup.menu.add("Set as Ringtone")
             popup.menu.add("Delete from Device")
         } else {
             popup.menu.add("Add to Playlist")
+            popup.menu.add("Set as Ringtone")
             popup.menu.add("Delete")
         }
         popup.setOnMenuItemClickListener { item ->
             when (item.title) {
                 "Add to Playlist", "Add to Another Playlist" ->
                     PlaylistDialogHelper.showAddToPlaylistDialog(requireContext(), song)
+                "Set as Ringtone" -> RingtoneHelper.setAsRingtone(requireActivity(), song)
                 "Remove from this Playlist" -> confirmRemoveSingleFromPlaylist(song)
                 "Delete", "Delete from Device" -> confirmDeleteSingleFromDevice(song)
             }
