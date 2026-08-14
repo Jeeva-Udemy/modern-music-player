@@ -31,4 +31,18 @@ object PlaybackController {
         play(context, songs, index)
         context.startActivity(Intent(context, NowPlayingActivity::class.java))
     }
+
+    /**
+     * Tells the service a file was deleted, so it can stop/skip immediately
+     * if that file was the one currently playing — otherwise the file
+     * descriptor stays open and playback silently continues from the
+     * now-deleted file.
+     */
+    fun notifySongRemoved(context: Context, path: String) {
+        val intent = Intent(context, MusicService::class.java).apply {
+            action = MusicService.ACTION_SONG_REMOVED
+            putExtra(MusicService.EXTRA_REMOVED_PATH, path)
+        }
+        context.startService(intent)
+    }
 }

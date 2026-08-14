@@ -351,6 +351,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
                         if (isPlaylistMode) {
                             playlistName?.let { PlaylistManager.removeSongFromPlaylist(requireContext(), it, path) }
                         }
+                        PlaybackController.notifySongRemoved(requireContext(), path)
                     }
                 }
                 count

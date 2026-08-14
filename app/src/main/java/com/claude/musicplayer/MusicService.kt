@@ -37,7 +37,9 @@ class MusicService : Service() {
         const val ACTION_NEXT = "com.claude.musicplayer.NEXT"
         const val ACTION_PREV = "com.claude.musicplayer.PREV"
         const val ACTION_PLAY_QUEUE = "com.claude.musicplayer.PLAY_QUEUE"
+        const val ACTION_SONG_REMOVED = "com.claude.musicplayer.SONG_REMOVED"
         const val EXTRA_INDEX = "extra_index"
+        const val EXTRA_REMOVED_PATH = "extra_removed_path"
 
         // The queue lives here (in-process) rather than being passed through
         // Intent extras. Large libraries (1000+ songs) blow past Android's
@@ -164,6 +166,9 @@ class MusicService : Service() {
                 val index = intent.getIntExtra(EXTRA_INDEX, 0)
                 playSongAt(index)
             }
+            ACTION_SONG_REMOVED -> {
+                handleSongRemoved(intent.getStringExtra(EXTRA_REMOVED_PATH))
+            }
         }
         return START_STICKY
     }
@@ -231,6 +236,46 @@ class MusicService : Service() {
     private fun skipForwardOnFailure(failedIndex: Int, attemptsRemaining: Int) {
         val next = computeNextIndex(failedIndex) ?: return
         playSongAt(next, attemptsRemaining - 1)
+    }
+
+    /**
+     * Called when a song file gets deleted elsewhere in the app. Deleting a
+     * file that's actively open for playback doesn't stop it by itself —
+     * Unix file handles stay valid until explicitly closed, so without this
+     * the MediaPlayer just keeps reading the already-open (now unlinked)
+     * file and plays on as if nothing happened. This releases that stale
+     * handle and moves on immediately if the removed song was the one
+     * currently loaded.
+     */
+    private fun handleSongRemoved(removedPath: String?) {
+        if (removedPath == null) return
+        val removedIndex = currentQueue.indexOfFirst { it.path == removedPath }
+        if (removedIndex == -1) return
+
+        val wasCurrent = removedIndex == currentIndex
+
+        val newQueue = currentQueue.toMutableList()
+        newQueue.removeAt(removedIndex)
+        if (removedIndex < currentIndex) {
+            currentIndex -= 1
+        }
+        currentQueue = newQueue
+
+        if (!wasCurrent) return
+
+        mediaPlayer?.release()
+        mediaPlayer = null
+        nowPlayingPath = null
+        nowPlayingIsActive = false
+
+        if (currentQueue.isEmpty()) {
+            updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+            stopForeground(true)
+            stopSelf()
+        } else {
+            val nextIndex = if (currentIndex in currentQueue.indices) currentIndex else 0
+            playSongAt(nextIndex)
+        }
     }
 
     /** The song currently loaded (playing or paused), if any. */

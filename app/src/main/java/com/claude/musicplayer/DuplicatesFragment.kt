@@ -146,7 +146,10 @@ class DuplicatesFragment : Fragment(R.layout.fragment_duplicates) {
             val deletedCount = withContext(Dispatchers.IO) {
                 var count = 0
                 for (path in paths) {
-                    if (FileOrganizer.deleteFile(requireContext(), path)) count++
+                    if (FileOrganizer.deleteFile(requireContext(), path)) {
+                        count++
+                        PlaybackController.notifySongRemoved(requireContext(), path)
+                    }
                 }
                 count
             }

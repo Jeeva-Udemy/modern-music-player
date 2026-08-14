@@ -202,7 +202,10 @@ class FolderSongsActivity : AppCompatActivity() {
             val deletedCount = withContext(Dispatchers.IO) {
                 var count = 0
                 for (path in paths) {
-                    if (FileOrganizer.deleteFile(this@FolderSongsActivity, path)) count++
+                    if (FileOrganizer.deleteFile(this@FolderSongsActivity, path)) {
+                        count++
+                        PlaybackController.notifySongRemoved(this@FolderSongsActivity, path)
+                    }
                 }
                 count
             }
