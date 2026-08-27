@@ -40,6 +40,7 @@ class MusicService : Service() {
         const val ACTION_SONG_REMOVED = "com.claude.musicplayer.SONG_REMOVED"
         const val EXTRA_INDEX = "extra_index"
         const val EXTRA_REMOVED_PATH = "extra_removed_path"
+        const val EXTRA_RESUME_POSITION_MS = "extra_resume_position_ms"
 
         // The queue lives here (in-process) rather than being passed through
         // Intent extras. Large libraries (1000+ songs) blow past Android's
@@ -164,7 +165,8 @@ class MusicService : Service() {
             ACTION_PREV -> playPrevious()
             ACTION_PLAY_QUEUE -> {
                 val index = intent.getIntExtra(EXTRA_INDEX, 0)
-                playSongAt(index)
+                val resumePositionMs = intent.getIntExtra(EXTRA_RESUME_POSITION_MS, 0)
+                playSongAt(index, resumePositionMs = resumePositionMs)
             }
             ACTION_SONG_REMOVED -> {
                 handleSongRemoved(intent.getStringExtra(EXTRA_REMOVED_PATH))
@@ -173,16 +175,18 @@ class MusicService : Service() {
         return START_STICKY
     }
 
-    fun playSongAt(index: Int) {
-        playSongAt(index, attemptsRemaining = currentQueue.size)
+    fun playSongAt(index: Int, resumePositionMs: Int = 0) {
+        playSongAt(index, attemptsRemaining = currentQueue.size, resumePositionMs = resumePositionMs)
     }
 
     /**
      * [attemptsRemaining] caps how many times we'll auto-skip a failing
      * track before giving up — without it, a bad file (or a whole queue of
-     * bad files) could otherwise recurse indefinitely.
+     * bad files) could otherwise recurse indefinitely. [resumePositionMs]
+     * seeks to that point once playback starts — used when restoring the
+     * last-played song after the service was stopped/killed.
      */
-    private fun playSongAt(index: Int, attemptsRemaining: Int) {
+    private fun playSongAt(index: Int, attemptsRemaining: Int, resumePositionMs: Int = 0) {
         if (currentQueue.isEmpty()) return
         if (attemptsRemaining <= 0) {
             Toast.makeText(this, "None of the songs in this queue could be played.", Toast.LENGTH_LONG).show()
@@ -221,12 +225,14 @@ class MusicService : Service() {
                 }
                 prepare()
                 start()
+                if (resumePositionMs > 0) seekTo(resumePositionMs)
             }
             updateMetadata(song)
             updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
             startForeground(NOTIFICATION_ID, buildNotification(song, isPlaying = true))
             nowPlayingPath = song.path
             nowPlayingIsActive = true
+            PlaybackStateStore.save(this, song, resumePositionMs)
         } catch (e: Exception) {
             Toast.makeText(this, "Skipping \"${song.title}\" — couldn't play it", Toast.LENGTH_SHORT).show()
             skipForwardOnFailure(index, attemptsRemaining)
@@ -296,6 +302,7 @@ class MusicService : Service() {
         nowPlayingIsActive = false
         currentQueue.getOrNull(currentIndex)?.let {
             startForeground(NOTIFICATION_ID, buildNotification(it, isPlaying = false))
+            PlaybackStateStore.save(this, it, getCurrentPositionMs())
         }
     }
 
@@ -458,7 +465,28 @@ class MusicService : Service() {
         }
     }
 
+    /**
+     * Called when the app's task is removed from Recents (user swipes it
+     * away or force-closes it). Without this, the service just keeps
+     * running indefinitely even with nothing playing — which is exactly
+     * what shows up as a phantom "Music Player running for 55 hr" entry in
+     * the system's battery/background-services list. If something is
+     * actively playing we let it continue (same expectation as any other
+     * music app); otherwise there's no reason to keep the process alive.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        getCurrentSong()?.let { PlaybackStateStore.save(this, it, getCurrentPositionMs()) }
+        if (!isPlaying()) {
+            stopForeground(true)
+            stopSelf()
+        }
+    }
+
     override fun onDestroy() {
+        getCurrentSong()?.let { PlaybackStateStore.save(this, it, getCurrentPositionMs()) }
+        nowPlayingPath = null
+        nowPlayingIsActive = false
         abandonAudioFocus()
         mediaPlayer?.release()
         mediaSession.release()

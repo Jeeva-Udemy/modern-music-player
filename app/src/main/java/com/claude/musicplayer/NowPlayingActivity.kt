@@ -20,6 +20,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private var musicService: MusicService? = null
     private var bound = false
     private val handler = Handler(Looper.getMainLooper())
+    private var lastBoundSongId: Long = -1
 
     private lateinit var titleView: TextView
     private lateinit var artistView: TextView
@@ -64,9 +65,12 @@ class NowPlayingActivity : AppCompatActivity() {
             handler.postDelayed({ bindUiToCurrentSong() }, 300)
         }
         playPauseButton.setOnClickListener {
-            musicService?.let {
-                if (it.isPlaying()) it.pause() else it.resume()
+            val svc = musicService
+            if (svc?.getCurrentSong() != null) {
+                if (svc.isPlaying()) svc.pause() else svc.resume()
                 updatePlayPauseIcon()
+            } else if (PlaybackController.resumeLastPlayed(this)) {
+                handler.postDelayed({ bindUiToCurrentSong() }, 300)
             }
         }
         shuffleButton.setOnClickListener {
@@ -92,12 +96,15 @@ class NowPlayingActivity : AppCompatActivity() {
         val song = musicService?.getCurrentSong() ?: return
         titleView.text = song.title
         artistView.text = song.artist
-        artView.imageTintList = android.content.res.ColorStateList.valueOf(getColor(R.color.accent))
-        artView.setImageResource(R.drawable.ic_music_note)
-        val bitmap = MusicRepository.loadAlbumArt(this, song.albumArtUri)
-        if (bitmap != null) {
-            artView.imageTintList = null
-            artView.setImageBitmap(bitmap)
+        if (song.id != lastBoundSongId) {
+            lastBoundSongId = song.id
+            artView.imageTintList = android.content.res.ColorStateList.valueOf(getColor(R.color.accent))
+            artView.setImageResource(R.drawable.ic_music_note)
+            val bitmap = MusicRepository.loadAlbumArt(this, song.albumArtUri)
+            if (bitmap != null) {
+                artView.imageTintList = null
+                artView.setImageBitmap(bitmap)
+            }
         }
         updatePlayPauseIcon()
         updateToggleButtonStates()
@@ -124,11 +131,17 @@ class NowPlayingActivity : AppCompatActivity() {
         handler.post(object : Runnable {
             override fun run() {
                 musicService?.let { svc ->
+                    // Catches up the title/artist/art if this screen opened
+                    // right as a "resume last played" was still starting up.
+                    if (svc.getCurrentSong()?.id != lastBoundSongId) {
+                        bindUiToCurrentSong()
+                    }
                     val duration = svc.getDurationMs()
                     if (duration > 0) {
                         seekBar.max = duration
                         seekBar.progress = svc.getCurrentPositionMs()
                     }
+                    updatePlayPauseIcon()
                 }
                 handler.postDelayed(this, 500)
             }

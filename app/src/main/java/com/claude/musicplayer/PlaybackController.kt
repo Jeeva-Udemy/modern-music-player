@@ -10,7 +10,7 @@ object PlaybackController {
      * already the one loaded (playing or paused), this is a no-op — tapping
      * a song that's already current shouldn't restart it from 0.
      */
-    fun play(context: Context, songs: List<Song>, index: Int) {
+    fun play(context: Context, songs: List<Song>, index: Int, resumePositionMs: Int = 0) {
         val song = songs.getOrNull(index) ?: return
         if (song.path == MusicService.nowPlayingPath) return
 
@@ -18,6 +18,7 @@ object PlaybackController {
         val intent = Intent(context, MusicService::class.java).apply {
             action = MusicService.ACTION_PLAY_QUEUE
             putExtra(MusicService.EXTRA_INDEX, index)
+            putExtra(MusicService.EXTRA_RESUME_POSITION_MS, resumePositionMs)
         }
         context.startService(intent)
     }
@@ -30,6 +31,17 @@ object PlaybackController {
     fun playAndOpenNowPlaying(context: Context, songs: List<Song>, index: Int) {
         play(context, songs, index)
         context.startActivity(Intent(context, NowPlayingActivity::class.java))
+    }
+
+    /**
+     * Resumes whatever was last playing before the service was stopped
+     * (e.g. the app was closed while paused), picking up from where it
+     * left off. Returns false if there's nothing to resume.
+     */
+    fun resumeLastPlayed(context: Context): Boolean {
+        val (song, position) = PlaybackStateStore.load(context) ?: return false
+        play(context, listOf(song), 0, resumePositionMs = position)
+        return true
     }
 
     /**
