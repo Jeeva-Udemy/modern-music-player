@@ -60,6 +60,13 @@ class MusicService : Service() {
     private lateinit var mediaSession: MediaSessionCompat
     private var currentIndex = 0
 
+    // True once the app's task has been swiped away from Recents. Tracked
+    // separately from "is playing" because onTaskRemoved only fires once,
+    // at the moment of removal — if music was still playing then, pausing
+    // it later (e.g. via the notification) wouldn't otherwise trigger any
+    // further check, and the service would just sit there paused forever.
+    private var taskRemoved = false
+
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     // True only when WE paused playback because of a focus loss (another
@@ -139,7 +146,10 @@ class MusicService : Service() {
         fun getService(): MusicService = this@MusicService
     }
 
-    override fun onBind(intent: Intent?): IBinder = binder
+    override fun onBind(intent: Intent?): IBinder {
+        taskRemoved = false
+        return binder
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -159,11 +169,21 @@ class MusicService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_PLAY -> resume()
+            ACTION_PLAY -> {
+                taskRemoved = false
+                resume()
+            }
             ACTION_PAUSE -> pause()
-            ACTION_NEXT -> playNext()
-            ACTION_PREV -> playPrevious()
+            ACTION_NEXT -> {
+                taskRemoved = false
+                playNext()
+            }
+            ACTION_PREV -> {
+                taskRemoved = false
+                playPrevious()
+            }
             ACTION_PLAY_QUEUE -> {
+                taskRemoved = false
                 val index = intent.getIntExtra(EXTRA_INDEX, 0)
                 val resumePositionMs = intent.getIntExtra(EXTRA_RESUME_POSITION_MS, 0)
                 playSongAt(index, resumePositionMs = resumePositionMs)
@@ -284,8 +304,18 @@ class MusicService : Service() {
         }
     }
 
-    /** The song currently loaded (playing or paused), if any. */
-    fun getCurrentSong(): Song? = currentQueue.getOrNull(currentIndex)
+    /**
+     * The song currently loaded (playing or paused), if any. Checking
+     * mediaPlayer (not just indexing into currentQueue) matters because
+     * currentQueue is a static field that can outlive this exact service
+     * instance — after the service restarts fresh (e.g. reopening the app),
+     * a stale queue from before would otherwise make this look like
+     * something's loaded when nothing has actually been prepared yet.
+     */
+    fun getCurrentSong(): Song? {
+        if (mediaPlayer == null) return null
+        return currentQueue.getOrNull(currentIndex)
+    }
 
     fun resume() {
         mediaPlayer?.start()
@@ -301,8 +331,16 @@ class MusicService : Service() {
         updatePlaybackState(PlaybackStateCompat.STATE_PAUSED)
         nowPlayingIsActive = false
         currentQueue.getOrNull(currentIndex)?.let {
-            startForeground(NOTIFICATION_ID, buildNotification(it, isPlaying = false))
             PlaybackStateStore.save(this, it, getCurrentPositionMs())
+            if (taskRemoved) {
+                // The app was already closed before this pause happened
+                // (e.g. paused via the notification after swiping the app
+                // away) — no reason to keep running now that we're idle too.
+                stopForeground(true)
+                stopSelf()
+            } else {
+                startForeground(NOTIFICATION_ID, buildNotification(it, isPlaying = false))
+            }
         }
     }
 
@@ -487,6 +525,7 @@ class MusicService : Service() {
         getCurrentSong()?.let { PlaybackStateStore.save(this, it, getCurrentPositionMs()) }
         nowPlayingPath = null
         nowPlayingIsActive = false
+        currentQueue = emptyList()
         abandonAudioFocus()
         mediaPlayer?.release()
         mediaSession.release()
