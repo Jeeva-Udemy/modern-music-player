@@ -1,6 +1,6 @@
 package com.claude.musicplayer
 
-import android.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -171,7 +171,7 @@ class FolderSongsActivity : AppCompatActivity() {
 
     private fun confirmDelete() {
         if (selectedPaths.isEmpty()) return
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Delete ${selectedPaths.size} file(s)?")
             .setMessage("These files will be permanently deleted from your device. This cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->

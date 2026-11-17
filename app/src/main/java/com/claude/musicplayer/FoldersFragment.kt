@@ -1,6 +1,6 @@
 package com.claude.musicplayer
 
-import android.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -82,7 +82,7 @@ class FoldersFragment : Fragment(R.layout.fragment_folders) {
     }
 
     private fun confirmAndMoveFiles() {
-        AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle("Move all audio files to Music folder?")
             .setMessage(
                 "This finds every supported audio file (MP3, M4A, AAC, WAV, FLAC, " +
@@ -105,7 +105,7 @@ class FoldersFragment : Fragment(R.layout.fragment_folders) {
     }
 
     private fun confirmAndImportFolder() {
-        AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle("Import audio from another app's folder?")
             .setMessage(
                 "Folders that belong to other apps (like WhatsApp's " +

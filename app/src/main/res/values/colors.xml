@@ -25,4 +25,7 @@
     <color name="ambientScrimTop">#80F4F1FA</color>
     <color name="ambientScrimBottom">#D9EEEAF6</color>
     <color name="ambientOrb3">#38BDF8</color>
+
+    <!-- Dropdown menus and dialogs: frosted, but opaque enough to read over any list -->
+    <color name="dropdownFill">#F5FFFFFF</color>
 </resources>

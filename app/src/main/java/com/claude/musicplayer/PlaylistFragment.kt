@@ -1,11 +1,10 @@
 package com.claude.musicplayer
 
-import android.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.EditText
-import android.widget.PopupMenu
+import androidx.appcompat.widget.PopupMenu
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -51,11 +50,13 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
         val popup = PopupMenu(requireContext(), anchor)
         popup.menu.add("Open")
         if (info.songs.isNotEmpty()) popup.menu.add("Play")
+        popup.menu.add("Rename")
         popup.menu.add("Delete playlist")
         popup.setOnMenuItemClickListener { item ->
             when (item.title) {
                 "Open" -> openPlaylist(info)
                 "Play" -> PlaybackController.play(requireContext(), info.songs, 0)
+                "Rename" -> PlaylistDialogHelper.showRenameDialog(requireContext(), info.name) { refresh() }
                 "Delete playlist" -> confirmDelete(info)
             }
             true
@@ -70,7 +71,7 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
     }
 
     private fun confirmDelete(info: PlaylistCardInfo) {
-        AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle("Delete \"${info.name}\"?")
             .setMessage("Only the playlist is removed — the songs stay on your device.")
             .setPositiveButton("Delete") { _, _ ->
@@ -82,19 +83,7 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
     }
 
     private fun showCreatePlaylistDialog() {
-        val input = EditText(requireContext())
-        AlertDialog.Builder(requireContext())
-            .setTitle("New playlist")
-            .setView(input)
-            .setPositiveButton("Create") { _, _ ->
-                val name = input.text.toString().trim()
-                if (name.isNotEmpty()) {
-                    PlaylistManager.createPlaylist(requireContext(), name)
-                    refresh()
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        PlaylistDialogHelper.showCreatePlaylistDialog(requireContext()) { refresh() }
     }
 
     fun refresh() {

@@ -36,7 +36,21 @@
             android:text="Your Music"
             android:textColor="@color/textPrimary"
             android:textSize="22sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <!-- Playlist screen only: rename this playlist -->
+        <ImageButton
+            android:id="@+id/renamePlaylistButton"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Rename playlist"
+            android:padding="9dp"
+            android:src="@drawable/ic_edit"
+            android:visibility="gone"
+            app:tint="@color/textPrimary" />
 
         <ImageButton
             android:id="@+id/searchToggleButton"
@@ -128,6 +142,20 @@
             app:icon="@drawable/ic_delete"
             app:iconGravity="textStart" />
     </LinearLayout>
+
+    <!-- Playlist screen only: how to rearrange songs -->
+    <TextView
+        android:id="@+id/reorderHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="2dp"
+        android:drawablePadding="6dp"
+        android:gravity="center_vertical"
+        android:text="Hold ≡ and drag to rearrange songs"
+        android:textColor="@color/textSecondary"
+        android:textSize="12sp"
+        android:visibility="gone" />
 
     <!-- Search bar: shown when the search icon is tapped -->
     <EditText

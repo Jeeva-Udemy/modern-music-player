@@ -11,5 +11,13 @@
         <item name="android:statusBarColor">@color/backgroundDark</item>
         <item name="android:navigationBarColor">@color/backgroundDark</item>
         <item name="android:windowLightStatusBar">@bool/lightSystemBars</item>
+
+        <!-- One dropdown + dialog look across the whole app -->
+        <item name="popupMenuStyle">@style/Widget.MusicPlayer.PopupMenu</item>
+        <item name="popupMenuBackground">@drawable/bg_dropdown</item>
+        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.MusicPlayer.PopupMenu</item>
+        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.MusicPlayer.PopupMenu</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.MusicPlayer.Dialog</item>
+        <item name="colorControlActivated">@color/accent</item>
     </style>
 </resources>

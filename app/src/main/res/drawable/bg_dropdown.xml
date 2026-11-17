@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Background for every dropdown menu in the app: rounded frosted card
+     with a thin bright rim, matching the glass cards. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/dropdownFill" />
+    <stroke android:width="1dp" android:color="@color/glassStroke" />
+    <corners android:radius="18dp" />
+    <padding android:top="6dp" android:bottom="6dp" />
+</shape>

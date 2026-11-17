@@ -1,10 +1,11 @@
 package com.claude.musicplayer
 
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
+import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -19,6 +20,7 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 
 /**
@@ -38,6 +40,7 @@ class MusicService : Service() {
         const val ACTION_PREV = "com.claude.musicplayer.PREV"
         const val ACTION_PLAY_QUEUE = "com.claude.musicplayer.PLAY_QUEUE"
         const val ACTION_SONG_REMOVED = "com.claude.musicplayer.SONG_REMOVED"
+        const val ACTION_DISMISS = "com.claude.musicplayer.DISMISS"
         const val EXTRA_INDEX = "extra_index"
         const val EXTRA_REMOVED_PATH = "extra_removed_path"
         const val EXTRA_RESUME_POSITION_MS = "extra_resume_position_ms"
@@ -73,6 +76,22 @@ class MusicService : Service() {
     // app's audio, a phone call, etc.) — not when the user tapped pause
     // themselves. Only in that case do we auto-resume on focus gain.
     private var pausedDueToFocusLoss = false
+
+    /**
+     * Fired by the system the instant audio is about to come out of the
+     * phone's speaker instead of headphones — a wired headset unplugged, or
+     * Bluetooth headphones disconnecting. Pausing here (like every other
+     * music app) stops the song suddenly blaring out loud.
+     */
+    private val becomingNoisyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && isPlaying()) {
+                // Not a focus loss — don't auto-resume when focus comes back.
+                pausedDueToFocusLoss = false
+                pause()
+            }
+        }
+    }
 
     private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
@@ -155,6 +174,11 @@ class MusicService : Service() {
         super.onCreate()
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         createNotificationChannel()
+        ContextCompat.registerReceiver(
+            this, becomingNoisyReceiver,
+            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         mediaSession = MediaSessionCompat(this, "MusicService").apply {
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() = resume()
@@ -163,6 +187,7 @@ class MusicService : Service() {
                 override fun onSkipToPrevious() = playPrevious()
                 override fun onSeekTo(pos: Long) = seekTo(pos.toInt())
             })
+            setSessionActivity(openAppPendingIntent())
             isActive = true
         }
     }
@@ -190,6 +215,14 @@ class MusicService : Service() {
             }
             ACTION_SONG_REMOVED -> {
                 handleSongRemoved(intent.getStringExtra(EXTRA_REMOVED_PATH))
+            }
+            ACTION_DISMISS -> {
+                // The paused notification was swiped away — nothing left to
+                // show or control, so shut down instead of idling.
+                if (!isPlaying()) {
+                    stopForeground(true)
+                    stopSelf()
+                }
             }
         }
         return START_STICKY
@@ -249,7 +282,7 @@ class MusicService : Service() {
             }
             updateMetadata(song)
             updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
-            startForeground(NOTIFICATION_ID, buildNotification(song, isPlaying = true))
+            postNotification(song, isPlaying = true)
             nowPlayingPath = song.path
             nowPlayingIsActive = true
             PlaybackStateStore.save(this, song, resumePositionMs)
@@ -318,18 +351,38 @@ class MusicService : Service() {
     }
 
     fun resume() {
-        mediaPlayer?.start()
-        updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
+        val player = mediaPlayer
+        if (player == null) {
+            // Nothing is loaded (the service was recreated, e.g. after being
+            // stopped while paused) — previously this still flipped the
+            // notification to "playing" even though no audio started. Load
+            // the last-played song back in from where it was left instead.
+            restoreLastPlayed()
+            return
+        }
+        if (!requestAudioFocus()) return
+        pausedDueToFocusLoss = false
+        player.start()
         nowPlayingIsActive = true
-        currentQueue.getOrNull(currentIndex)?.let {
-            startForeground(NOTIFICATION_ID, buildNotification(it, isPlaying = true))
+        updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
+        currentQueue.getOrNull(currentIndex)?.let { postNotification(it, isPlaying = true) }
+    }
+
+    private fun restoreLastPlayed() {
+        val (song, positionMs) = PlaybackStateStore.load(this) ?: return
+        val existing = currentQueue.indexOfFirst { it.path == song.path }
+        if (existing >= 0) {
+            playSongAt(existing, resumePositionMs = positionMs)
+        } else {
+            currentQueue = listOf(song)
+            playSongAt(0, resumePositionMs = positionMs)
         }
     }
 
     fun pause() {
-        mediaPlayer?.pause()
-        updatePlaybackState(PlaybackStateCompat.STATE_PAUSED)
+        mediaPlayer?.let { if (it.isPlaying) it.pause() }
         nowPlayingIsActive = false
+        updatePlaybackState(PlaybackStateCompat.STATE_PAUSED)
         currentQueue.getOrNull(currentIndex)?.let {
             PlaybackStateStore.save(this, it, getCurrentPositionMs())
             if (taskRemoved) {
@@ -339,8 +392,31 @@ class MusicService : Service() {
                 stopForeground(true)
                 stopSelf()
             } else {
-                startForeground(NOTIFICATION_ID, buildNotification(it, isPlaying = false))
+                postNotification(it, isPlaying = false)
             }
+        }
+    }
+
+    /**
+     * Shows/updates the media notification. Starting playback promotes the
+     * service to the foreground; every later change (pause, resume, next)
+     * re-posts the same notification ID through NotificationManager, which
+     * reliably redraws it — re-calling startForeground for a pause didn't
+     * refresh the controls on some phones, leaving the "pause" button shown
+     * while the song was actually paused. The service stays in the
+     * foreground while paused, so resuming from the notification or a
+     * Bluetooth/headset button still works when the app is in the
+     * background.
+     */
+    private fun postNotification(song: Song, isPlaying: Boolean) {
+        val notification = buildNotification(song, isPlaying)
+        if (isPlaying) {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+        try {
+            getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
+        } catch (e: SecurityException) {
+            // Notification permission not granted — playback itself is unaffected.
         }
     }
 
@@ -390,11 +466,9 @@ class MusicService : Service() {
     fun isPlaying(): Boolean = mediaPlayer?.isPlaying == true
 
     private fun updateMetadata(song: Song) {
-        val art = try {
-            song.albumArtUri?.let {
-                contentResolver.openInputStream(Uri.parse(it))?.use(BitmapFactory::decodeStream)
-            }
-        } catch (e: Exception) { null }
+        // Downsampled + cached: a full-resolution cover (often several MB)
+        // made every pause/resume re-decode it and ship it to the system.
+        val art = MusicRepository.loadAlbumArt(this, song.albumArtUri, 512)
 
         val metadata = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, song.title)
@@ -414,10 +488,14 @@ class MusicService : Service() {
                 PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackStateCompat.ACTION_SEEK_TO
 
+        // Speed 0 when not playing — the system's media controls (lock screen,
+        // quick settings) use this state to decide between showing play or
+        // pause, and to stop advancing the progress bar.
+        val speed = if (state == PlaybackStateCompat.STATE_PLAYING) 1f else 0f
         mediaSession.setPlaybackState(
             PlaybackStateCompat.Builder()
                 .setActions(actions)
-                .setState(state, getCurrentPositionMs().toLong(), 1f)
+                .setState(state, getCurrentPositionMs().toLong(), speed)
                 .build()
         )
     }
@@ -430,36 +508,34 @@ class MusicService : Service() {
     private fun buildNotification(song: Song, isPlaying: Boolean): Notification {
         val playPauseAction = if (isPlaying) {
             NotificationCompat.Action(
-                android.R.drawable.ic_media_pause, "Pause",
+                R.drawable.ic_pause, "Pause",
                 servicePendingIntent(ACTION_PAUSE)
             )
         } else {
             NotificationCompat.Action(
-                android.R.drawable.ic_media_play, "Play",
+                R.drawable.ic_play, "Play",
                 servicePendingIntent(ACTION_PLAY)
             )
         }
 
-        val art = try {
-            song.albumArtUri?.let {
-                contentResolver.openInputStream(Uri.parse(it))?.use(BitmapFactory::decodeStream)
-            }
-        } catch (e: Exception) { null }
+        val art = MusicRepository.loadAlbumArt(this, song.albumArtUri, 512)
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(song.title)
             .setContentText(song.artist)
             .setSubText(song.album)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            // Status-bar icon also reflects the state: a note while playing,
+            // the pause symbol while paused.
+            .setSmallIcon(if (isPlaying) R.drawable.ic_music_note else R.drawable.ic_pause)
             .setLargeIcon(art)
             .setContentIntent(openAppPendingIntent())
             .addAction(
-                android.R.drawable.ic_media_previous, "Previous",
+                R.drawable.ic_skip_previous, "Previous",
                 servicePendingIntent(ACTION_PREV)
             )
             .addAction(playPauseAction)
             .addAction(
-                android.R.drawable.ic_media_next, "Next",
+                R.drawable.ic_skip_next, "Next",
                 servicePendingIntent(ACTION_NEXT)
             )
             .setStyle(
@@ -472,7 +548,10 @@ class MusicService : Service() {
             .setColor(0xFF7B2FF7.toInt())
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setShowWhen(false)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
             .setOngoing(isPlaying)
+            .setDeleteIntent(servicePendingIntent(ACTION_DISMISS))
             .build()
     }
 
@@ -522,6 +601,9 @@ class MusicService : Service() {
     }
 
     override fun onDestroy() {
+        try {
+            unregisterReceiver(becomingNoisyReceiver)
+        } catch (e: IllegalArgumentException) { /* wasn't registered */ }
         getCurrentSong()?.let { PlaybackStateStore.save(this, it, getCurrentPositionMs()) }
         nowPlayingPath = null
         nowPlayingIsActive = false

@@ -1,6 +1,6 @@
 package com.claude.musicplayer
 
-import android.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -13,11 +13,12 @@ import android.text.TextWatcher
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageButton
-import android.widget.PopupMenu
+import androidx.appcompat.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -63,6 +64,14 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     private lateinit var searchEditText: EditText
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var sortButton: TextView
+    private lateinit var headerTitle: TextView
+    private lateinit var reorderHint: TextView
+
+    // Drag-and-drop reordering (playlist screen only)
+    private lateinit var itemTouchHelper: ItemTouchHelper
+    private var isDragging = false
+    private var orderChangedDuringDrag = false
+    private var portabilityTipShown = false
 
     private var selectionMode = false
     private val selectedPaths = mutableSetOf<String>()
@@ -83,7 +92,8 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         override fun run() {
             val path = MusicService.nowPlayingPath
             val active = MusicService.nowPlayingIsActive
-            if (path != lastNowPlayingPath || active != lastNowPlayingActive) {
+            // Redrawing every row mid-drag would cancel the drag, so wait until it's dropped.
+            if (!isDragging && (path != lastNowPlayingPath || active != lastNowPlayingActive)) {
                 lastNowPlayingPath = path
                 lastNowPlayingActive = active
                 adapter.refreshNowPlaying()
@@ -107,7 +117,21 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         searchEditText = view.findViewById(R.id.searchEditText)
         swipeRefresh = view.findViewById(R.id.songsSwipeRefresh)
 
-        view.findViewById<TextView>(R.id.headerTitle).text = playlistName ?: "Your Music"
+        headerTitle = view.findViewById(R.id.headerTitle)
+        headerTitle.text = playlistName ?: "Your Music"
+        reorderHint = view.findViewById(R.id.reorderHint)
+        reorderHint.setOnClickListener {
+            // "Choose Playlist order" hint doubles as a one-tap switch to it.
+            if (isPlaylistMode && currentSortId != R.id.sort_playlist_order) {
+                currentSortId = R.id.sort_playlist_order
+                SortPreference.save(requireContext(), currentSortId, forPlaylist = true)
+                updateSortLabel()
+                applyFiltersAndSort()
+            }
+        }
+        val renameButton = view.findViewById<ImageButton>(R.id.renamePlaylistButton)
+        renameButton.visibility = if (isPlaylistMode) View.VISIBLE else View.GONE
+        renameButton.setOnClickListener { showRenameDialog() }
         val backButton = view.findViewById<ImageButton>(R.id.songsBackButton)
         if (isPlaylistMode) {
             backButton.visibility = View.VISIBLE
@@ -140,9 +164,13 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
                 updateSelectionUi()
             },
             nowPlayingPath = { MusicService.nowPlayingPath },
-            nowPlayingActive = { MusicService.nowPlayingIsActive }
+            nowPlayingActive = { MusicService.nowPlayingIsActive },
+            showDragHandle = { canReorder() },
+            onDragHandlePressed = { holder -> if (canReorder()) itemTouchHelper.startDrag(holder) }
         )
         recyclerView.adapter = adapter
+        itemTouchHelper = ItemTouchHelper(reorderCallback)
+        itemTouchHelper.attachToRecyclerView(recyclerView)
 
         sortButton.setOnClickListener { anchor -> showSortMenu(anchor) }
 
@@ -181,7 +209,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         if (pendingDeleteAfterPermission && FileOrganizer.hasFullStorageAccess()) {
             pendingDeleteAfterPermission = false
             performDeleteFromDevice(selectedPaths.toList())
-        } else if (!pendingDeleteAfterPermission) {
+        } else if (!pendingDeleteAfterPermission && !isDragging) {
             refresh()
         }
     }
@@ -211,6 +239,100 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         }
     }
 
+    /**
+     * Rows can be dragged only on a playlist screen, while it's showing the
+     * playlist's own order — not while sorted by title etc. (a drag there
+     * would have no meaning), searching, or selecting.
+     */
+    private fun canReorder(): Boolean =
+        isPlaylistMode && currentSortId == R.id.sort_playlist_order &&
+            searchQuery.isBlank() && !selectionMode
+
+    private val reorderCallback = object : ItemTouchHelper.SimpleCallback(
+        ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0
+    ) {
+        // Long-press already means "add to playlist"; dragging starts from the ≡ handle.
+        override fun isLongPressDragEnabled(): Boolean = false
+
+        override fun getMovementFlags(rv: RecyclerView, vh: RecyclerView.ViewHolder): Int =
+            if (canReorder()) makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0) else 0
+
+        override fun onMove(
+            rv: RecyclerView, from: RecyclerView.ViewHolder, to: RecyclerView.ViewHolder
+        ): Boolean {
+            val fromPos = from.bindingAdapterPosition
+            val toPos = to.bindingAdapterPosition
+            if (fromPos == RecyclerView.NO_POSITION || toPos == RecyclerView.NO_POSITION) return false
+            adapter.moveItem(fromPos, toPos)
+            orderChangedDuringDrag = true
+            return true
+        }
+
+        override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) {}
+
+        override fun onSelectedChanged(vh: RecyclerView.ViewHolder?, actionState: Int) {
+            super.onSelectedChanged(vh, actionState)
+            if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && vh != null) {
+                isDragging = true
+                swipeRefresh.isEnabled = false
+                // Lift the row slightly so it reads as "picked up".
+                vh.itemView.animate().scaleX(1.03f).scaleY(1.03f).alpha(0.92f)
+                    .translationZ(12f * resources.displayMetrics.density).setDuration(120).start()
+            }
+        }
+
+        override fun clearView(rv: RecyclerView, vh: RecyclerView.ViewHolder) {
+            super.clearView(rv, vh)
+            vh.itemView.animate().scaleX(1f).scaleY(1f).alpha(1f).translationZ(0f)
+                .setDuration(120).start()
+            isDragging = false
+            swipeRefresh.isEnabled = true
+            if (orderChangedDuringDrag) {
+                orderChangedDuringDrag = false
+                saveNewOrder()
+            }
+        }
+    }
+
+    private fun saveNewOrder() {
+        val name = playlistName ?: return
+        val newOrder = adapter.currentList()
+        allSongs = newOrder
+        PlaylistManager.reorderPlaylist(requireContext(), name, newOrder.map { it.path })
+        if (!PlaylistManager.isPortable() && !portabilityTipShown) {
+            portabilityTipShown = true
+            Toast.makeText(
+                requireContext(),
+                "Order saved. To keep it even after uninstalling, allow \"All files access\" from the Folders tab.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    private fun updateReorderHint() {
+        if (!isPlaylistMode || selectionMode || searchQuery.isNotBlank() || allSongs.size < 2) {
+            reorderHint.visibility = View.GONE
+            return
+        }
+        reorderHint.visibility = View.VISIBLE
+        reorderHint.text = if (currentSortId == R.id.sort_playlist_order) {
+            "Hold ≡ and drag to rearrange songs"
+        } else {
+            "Tap here to switch to Playlist order and rearrange songs"
+        }
+    }
+
+    private fun showRenameDialog() {
+        val oldName = playlistName ?: return
+        PlaylistDialogHelper.showRenameDialog(requireContext(), oldName) { newName ->
+            // Keep this screen (and the activity, if it's recreated) pointed at the new name.
+            arguments?.putString(ARG_PLAYLIST_NAME, newName)
+            requireActivity().intent.putExtra(PlaylistSongsActivity.EXTRA_PLAYLIST_NAME, newName)
+            headerTitle.text = newName
+            refresh()
+        }
+    }
+
     private fun enterSelectionMode() {
         selectionMode = true
         selectedPaths.clear()
@@ -218,6 +340,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         selectionHeader.visibility = View.VISIBLE
         backPressedCallback.isEnabled = true
         updateSelectionUi()
+        updateReorderHint()
     }
 
     private fun exitSelectionMode() {
@@ -227,6 +350,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         selectionHeader.visibility = View.GONE
         backPressedCallback.isEnabled = false
         adapter.refreshSelectionUi()
+        updateReorderHint()
     }
 
     private fun updateSelectionUi() {
@@ -263,7 +387,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
 
     private fun confirmRemoveSingleFromPlaylist(song: Song) {
         val name = playlistName ?: return
-        AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle("Remove from playlist?")
             .setMessage("Remove \"${song.title}\" from \"$name\"? The file itself won't be deleted.")
             .setPositiveButton("Remove") { _, _ ->
@@ -275,7 +399,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     }
 
     private fun confirmDeleteSingleFromDevice(song: Song) {
-        AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle("Delete \"${song.title}\"?")
             .setMessage("This permanently deletes the file from your device. This cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->
@@ -296,14 +420,14 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         if (selectedPaths.isEmpty()) return
         if (isPlaylistMode) {
             val name = playlistName ?: return
-            AlertDialog.Builder(requireContext())
+            MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Remove ${selectedPaths.size} song(s)?")
                 .setMessage("They'll be removed from \"$name\". The files themselves won't be deleted.")
                 .setPositiveButton("Remove") { _, _ -> performRemoveFromPlaylist(selectedPaths.toList()) }
                 .setNegativeButton("Cancel", null)
                 .show()
         } else {
-            AlertDialog.Builder(requireContext())
+            MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Delete ${selectedPaths.size} file(s)?")
                 .setMessage("These files will be permanently deleted from your device. This cannot be undone.")
                 .setPositiveButton("Delete") { _, _ ->
@@ -405,6 +529,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
             allSongs.filter { it.title.lowercase().contains(q) || it.artist.lowercase().contains(q) }
         }
         adapter.updateData(applySort(filtered, currentSortId))
+        updateReorderHint()
     }
 
     fun refresh() {

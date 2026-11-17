@@ -110,6 +110,64 @@ object PlaylistManager {
         writeM3uSafely(playlistName, paths)
     }
 
+    /**
+     * Saves a new song order (from drag-and-drop on the playlist screen).
+     * [orderedPaths] is the order the user arranged; any songs the screen
+     * couldn't show (files currently missing from the library) keep their
+     * place at the end rather than being dropped. Written to both the local
+     * cache and the playlist's .m3u8 file, so the order survives closing,
+     * reinstalling or uninstalling the app (the file part needs "All files
+     * access").
+     */
+    fun reorderPlaylist(context: Context, playlistName: String, orderedPaths: List<String>) {
+        val existing = getSongPaths(context, playlistName)
+        val existingSet = existing.toSet()
+        val ordered = orderedPaths.filter { it in existingSet }.distinct()
+        val orderedSet = ordered.toSet()
+        val result = ordered + existing.filter { it !in orderedSet }
+        prefs(context).edit().putString(songsKey(playlistName), result.joinToString("|")).commit()
+        writeM3uSafely(playlistName, result)
+    }
+
+    sealed class RenameResult {
+        object Ok : RenameResult()
+        object Blank : RenameResult()
+        object AlreadyExists : RenameResult()
+    }
+
+    /**
+     * Renames a playlist — its entry in the local cache and its .m3u8 file
+     * on disk — keeping every song and its order.
+     */
+    fun renamePlaylist(context: Context, oldName: String, newNameRaw: String): RenameResult {
+        val newName = newNameRaw.trim()
+        if (newName.isEmpty()) return RenameResult.Blank
+        if (newName == oldName) return RenameResult.Ok
+        val names = prefs(context).getStringSet(KEY_NAMES, emptySet())!!.toMutableSet()
+        // Case-insensitive: shared storage treats "Gym" and "gym" as the same file.
+        if (names.any { it != oldName && it.equals(newName, ignoreCase = true) }) {
+            return RenameResult.AlreadyExists
+        }
+
+        val paths = getSongPaths(context, oldName)
+        names.remove(oldName)
+        names.add(newName)
+        prefs(context).edit()
+            .putStringSet(KEY_NAMES, names)
+            .remove(songsKey(oldName))
+            .putString(songsKey(newName), paths.joinToString("|"))
+            .commit()
+
+        // Delete the old file before writing the new one: on shared storage
+        // a case-only rename ("gym" → "Gym") is the same file, and deleting
+        // afterwards would remove the freshly written playlist.
+        try {
+            m3uFile(oldName).delete()
+        } catch (e: Exception) { /* no storage access */ }
+        writeM3uSafely(newName, paths)
+        return RenameResult.Ok
+    }
+
     fun getSongPaths(context: Context, playlistName: String): List<String> {
         val raw = prefs(context).getString(songsKey(playlistName), "") ?: ""
         return if (raw.isBlank()) emptyList() else raw.split("|")

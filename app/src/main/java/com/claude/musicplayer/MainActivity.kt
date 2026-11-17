@@ -28,8 +28,16 @@ class MainActivity : AppCompatActivity() {
         volumeControlStream = AudioManager.STREAM_MUSIC
 
         val themeButton = findViewById<ImageButton>(R.id.themeToggleButton)
-        themeButton.setImageResource(ThemePreference.iconFor(ThemePreference.load(this)))
-        themeButton.setOnClickListener { ThemePreference.showPicker(this, it) }
+        themeButton.setImageResource(ThemePreference.iconFor(this))
+        themeButton.contentDescription =
+            if (ThemePreference.isDark(this)) "Switch to light mode" else "Switch to dark mode"
+        themeButton.setOnClickListener { button ->
+            // Quick spin of the sun/moon, then switch Dark ⇄ Light.
+            button.isEnabled = false
+            button.animate().rotationBy(180f).scaleX(0.6f).scaleY(0.6f).setDuration(220)
+                .withEndAction { ThemePreference.toggle(this) }
+                .start()
+        }
 
         requestNeededPermissions()
 

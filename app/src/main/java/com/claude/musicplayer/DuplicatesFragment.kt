@@ -1,6 +1,6 @@
 package com.claude.musicplayer
 
-import android.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -109,7 +109,7 @@ class DuplicatesFragment : Fragment(R.layout.fragment_duplicates) {
     private fun confirmDelete() {
         if (selectedPaths.isEmpty()) return
 
-        AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle("Delete ${selectedPaths.size} file(s)?")
             .setMessage("These files will be permanently deleted from your device. This cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->
