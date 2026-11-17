@@ -3,6 +3,5 @@
     <gradient
         android:angle="315"
         android:startColor="@color/accent"
-        android:centerColor="#B14FE0"
         android:endColor="@color/accentSecondary" />
 </shape>

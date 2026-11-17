@@ -545,7 +545,8 @@ class MusicService : Service() {
             )
             .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             .setColorized(true)
-            .setColor(0xFF7B2FF7.toInt())
+            // Artwork colour when available, otherwise the app's lavender.
+            .setColor(ArtworkTheme.state.accentForDark ?: 0xFF9AA5F0.toInt())
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setShowWhen(false)
             .setOnlyAlertOnce(true)

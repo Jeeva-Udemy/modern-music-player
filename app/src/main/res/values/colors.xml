@@ -1,32 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Light theme palette. The dark palette lives in values-night/colors.xml.
-     Names are kept from the original dark-only theme so every layout picks
-     up both modes automatically. -->
+<!-- Light theme: warm cream with white cards and black accents.
+     The dark palette lives in values-night/colors.xml. Names are kept from
+     the original dark-only theme so every layout picks up both modes.
+     "accent" is the fallback for songs without artwork — songs with artwork
+     tint buttons from their cover instead (see ArtworkTheme). -->
 <resources>
-    <color name="backgroundDark">#EEEAF6</color>
+    <color name="backgroundDark">#F2ECE4</color>
     <color name="surfaceDark">#FFFFFF</color>
-    <color name="surfaceElevated">#E6E0F0</color>
-    <color name="accent">#7C3AED</color>
-    <color name="accentSecondary">#E0418A</color>
+    <color name="surfaceElevated">#ECE6DD</color>
+    <color name="accent">#1C1C1E</color>
+    <color name="accentSecondary">#8A7F72</color>
     <color name="onAccent">#FFFFFF</color>
-    <color name="textPrimary">#17131F</color>
-    <color name="textSecondary">#625A70</color>
-    <color name="danger">#E5484D</color>
+    <color name="textPrimary">#1C1C1E</color>
+    <color name="textSecondary">#8A8580</color>
+    <color name="danger">#D93F3F</color>
 
-    <!-- Frosted-glass surfaces -->
-    <color name="glassFill">#99FFFFFF</color>
-    <color name="glassFillTop">#D9FFFFFF</color>
-    <color name="glassFillBottom">#73FFFFFF</color>
-    <color name="glassStroke">#E6FFFFFF</color>
-    <color name="glassDivider">#1A17131F</color>
+    <!-- Cards and controls: near-solid white, as in the reference -->
+    <color name="glassFill">#D9FFFFFF</color>
+    <color name="glassFillTop">#F2FFFFFF</color>
+    <color name="glassFillBottom">#C7FFFFFF</color>
+    <color name="glassStroke">#1A1C1C1E</color>
+    <color name="glassDivider">#141C1C1E</color>
 
-    <!-- Ambient background -->
-    <color name="ambientBase">#EEEAF6</color>
-    <color name="ambientScrimTop">#80F4F1FA</color>
-    <color name="ambientScrimBottom">#D9EEEAF6</color>
-    <color name="ambientOrb3">#38BDF8</color>
+    <!-- Ambient background: cream base with soft peach / sky / lilac glows -->
+    <color name="ambientBase">#F2ECE4</color>
+    <color name="ambientScrimTop">#99F2ECE4</color>
+    <color name="ambientScrimBottom">#E6F2ECE4</color>
+    <color name="ambientOrb1">#F3CDB8</color>
+    <color name="ambientOrb2">#C9DAF2</color>
+    <color name="ambientOrb3">#E2D4EE</color>
 
-    <!-- Dropdown menus and dialogs: frosted, but opaque enough to read over any list -->
-    <color name="dropdownFill">#F5FFFFFF</color>
-    <color name="rippleSoft">#2217131F</color>
+    <!-- Dropdown menus and dialogs -->
+    <color name="dropdownFill">#FAFFFFFF</color>
+    <color name="rippleSoft">#1A1C1C1E</color>
 </resources>

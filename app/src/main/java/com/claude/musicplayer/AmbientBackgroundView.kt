@@ -67,11 +67,7 @@ class AmbientBackgroundView @JvmOverloads constructor(
     private var previousArt: Bitmap? = null
     private var fadeStart = 0L
 
-    private var orbColors = intArrayOf(
-        ArtworkTheme.accentFor(context),
-        ArtworkTheme.secondaryFor(context),
-        context.getColor(R.color.ambientOrb3)
-    )
+    private var orbColors = computeOrbColors()
     private var previousOrbColors = orbColors.copyOf()
 
     private val artPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
@@ -104,15 +100,28 @@ class AmbientBackgroundView @JvmOverloads constructor(
             previousArt = art
             art = state.blurred
             previousOrbColors = currentOrbColors()
-            orbColors = intArrayOf(
-                ArtworkTheme.accentFor(context),
-                ArtworkTheme.secondaryFor(context),
-                context.getColor(R.color.ambientOrb3)
-            )
+            orbColors = computeOrbColors()
             fadeStart = SystemClock.uptimeMillis()
             invalidate()
         }
     }
+
+    /**
+     * Glows take the artwork's colours when there is artwork; otherwise the
+     * theme's own soft glows (lavender/periwinkle on slate, peach/sky/lilac
+     * on cream) — the plain fallback accent (black in light mode) would make
+     * murky orbs.
+     */
+    private fun computeOrbColors(): IntArray =
+        if (ArtworkTheme.hasArtworkColours(context)) intArrayOf(
+            ArtworkTheme.accentFor(context),
+            ArtworkTheme.secondaryFor(context),
+            context.getColor(R.color.ambientOrb3)
+        ) else intArrayOf(
+            context.getColor(R.color.ambientOrb1),
+            context.getColor(R.color.ambientOrb2),
+            context.getColor(R.color.ambientOrb3)
+        )
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()

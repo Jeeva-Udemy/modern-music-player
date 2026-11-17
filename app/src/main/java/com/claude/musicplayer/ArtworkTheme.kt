@@ -98,8 +98,18 @@ object ArtworkTheme {
             ?: context.getColor(R.color.accentSecondary)
 
     /** White or near-black, whichever reads better on top of [color]. */
-    fun onColorFor(color: Int): Int =
-        if (ColorUtils.calculateLuminance(color) > 0.55) Color.parseColor("#17131F") else Color.WHITE
+    fun onColorFor(color: Int): Int {
+        // Whichever of white / near-black contrasts more — e.g. dark text on
+        // the soft lavender, white text on black or deep artwork colours.
+        val dark = Color.parseColor("#1C1C2A")
+        return if (ColorUtils.calculateContrast(Color.WHITE, ColorUtils.setAlphaComponent(color, 255)) >=
+            ColorUtils.calculateContrast(dark, ColorUtils.setAlphaComponent(color, 255))
+        ) Color.WHITE else dark
+    }
+
+    /** True while the current song's artwork is supplying the colours (vs. the theme fallback). */
+    fun hasArtworkColours(context: Context): Boolean =
+        (if (isNight(context)) state.accentForDark else state.accentForLight) != null
 
     /**
      * Background for dropdowns and dialogs: the screen's surface colour

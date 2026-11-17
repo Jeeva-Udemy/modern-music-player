@@ -1,27 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Dark theme: muted slate blue with soft lavender accents. -->
 <resources>
-    <color name="backgroundDark">#0B0A12</color>
-    <color name="surfaceDark">#1E1A29</color>
-    <color name="surfaceElevated">#2A2438</color>
-    <color name="accent">#A877FF</color>
-    <color name="accentSecondary">#FF5CA8</color>
-    <color name="onAccent">#FFFFFF</color>
-    <color name="textPrimary">#FFFFFF</color>
-    <color name="textSecondary">#B0A8C0</color>
-    <color name="danger">#FF6B6B</color>
+    <color name="backgroundDark">#2E3350</color>
+    <color name="surfaceDark">#353B5C</color>
+    <color name="surfaceElevated">#3B4166</color>
+    <color name="accent">#9AA5F0</color>
+    <color name="accentSecondary">#C3A9F0</color>
+    <color name="onAccent">#1E2238</color>
+    <color name="textPrimary">#E8EAF6</color>
+    <color name="textSecondary">#A3A9C9</color>
+    <color name="danger">#FF7A7A</color>
 
-    <color name="glassFill">#1FFFFFFF</color>
-    <color name="glassFillTop">#2EFFFFFF</color>
-    <color name="glassFillBottom">#0DFFFFFF</color>
-    <color name="glassStroke">#33FFFFFF</color>
+    <!-- Raised slate cards with a soft lighter rim -->
+    <color name="glassFill">#CC3B4166</color>
+    <color name="glassFillTop">#E6434A72</color>
+    <color name="glassFillBottom">#B3363C5E</color>
+    <color name="glassStroke">#994C5380</color>
     <color name="glassDivider">#1AFFFFFF</color>
 
-    <color name="ambientBase">#07060C</color>
-    <color name="ambientScrimTop">#66070610</color>
-    <color name="ambientScrimBottom">#E607060C</color>
-    <color name="ambientOrb3">#2DD4BF</color>
+    <!-- Ambient background: slate base with lavender / periwinkle glows -->
+    <color name="ambientBase">#2E3350</color>
+    <color name="ambientScrimTop">#802E3350</color>
+    <color name="ambientScrimBottom">#E62E3350</color>
+    <color name="ambientOrb1">#6F7BD6</color>
+    <color name="ambientOrb2">#8E78C8</color>
+    <color name="ambientOrb3">#5E8FC4</color>
 
-    <!-- Dropdown menus and dialogs: frosted, but opaque enough to read over any list -->
-    <color name="dropdownFill">#F2221D2E</color>
+    <!-- Dropdown menus and dialogs -->
+    <color name="dropdownFill">#F2353B5C</color>
     <color name="rippleSoft">#33FFFFFF</color>
 </resources>
