@@ -1,7 +1,9 @@
 package com.claude.musicplayer
 
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
@@ -22,6 +24,12 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        AmbientBackgroundView.attach(this)
+        volumeControlStream = AudioManager.STREAM_MUSIC
+
+        val themeButton = findViewById<ImageButton>(R.id.themeToggleButton)
+        themeButton.setImageResource(ThemePreference.iconFor(ThemePreference.load(this)))
+        themeButton.setOnClickListener { ThemePreference.showPicker(this, it) }
 
         requestNeededPermissions()
 
@@ -50,6 +58,13 @@ class MainActivity : AppCompatActivity() {
             seekBar = findViewById<SeekBar>(R.id.miniSeekBar)
         )
         miniPlayer.start()
+
+        // The selected-tab pill takes its colour from the current artwork.
+        ArtworkTheme.bind(this, this) {
+            val accent = ArtworkTheme.accentFor(this)
+            tabLayout.setSelectedTabIndicatorColor(accent)
+            tabLayout.setTabTextColors(getColor(R.color.textSecondary), ArtworkTheme.onColorFor(accent))
+        }
     }
 
     private fun requestNeededPermissions() {

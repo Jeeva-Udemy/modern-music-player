@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_volume_popup"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="10dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="8dp">
+
+    <ImageView
+        android:id="@+id/popupVolumeIcon"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Mute"
+        android:padding="8dp"
+        android:src="@drawable/ic_volume_up"
+        app:tint="@color/textPrimary" />
+
+    <SeekBar
+        android:id="@+id/popupVolumeSeekBar"
+        android:layout_width="210dp"
+        android:layout_height="wrap_content" />
+</LinearLayout>

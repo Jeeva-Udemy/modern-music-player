@@ -60,14 +60,17 @@ class SongAdapter(
         // actually decode real album art — many tracks have none, and the
         // legacy MediaStore art URI can "resolve" without throwing while
         // still decoding to nothing, which used to leave the row blank.
-        holder.art.imageTintList = android.content.res.ColorStateList.valueOf(
-            holder.itemView.context.getColor(R.color.accent)
-        )
-        holder.art.setImageResource(R.drawable.ic_music_note)
-        val bitmap = MusicRepository.loadAlbumArt(holder.itemView.context, song.albumArtUri)
+        val ctx = holder.itemView.context
+        val bitmap = MusicRepository.loadAlbumArt(ctx, song.albumArtUri, 160)
         if (bitmap != null) {
             holder.art.imageTintList = null
+            holder.art.setPadding(0, 0, 0, 0)
             holder.art.setImageBitmap(bitmap)
+        } else {
+            val pad = (12 * ctx.resources.displayMetrics.density).toInt()
+            holder.art.imageTintList = android.content.res.ColorStateList.valueOf(ctx.getColor(R.color.accent))
+            holder.art.setPadding(pad, pad, pad, pad)
+            holder.art.setImageResource(R.drawable.ic_music_note)
         }
 
         val selectionActive = isSelectionMode()
@@ -79,16 +82,19 @@ class SongAdapter(
         // visible while scrolling through a long list.
         val isNowPlaying = song.path == nowPlayingPath() && nowPlayingPath() != null
         if (isNowPlaying) {
-            holder.card.strokeColor = holder.itemView.context.getColor(R.color.accent)
+            val accent = ArtworkTheme.accentFor(ctx)
+            holder.card.strokeColor = accent
             holder.card.strokeWidth = holder.itemView.resources.getDimensionPixelSize(R.dimen.now_playing_stroke_width)
-            holder.title.setTextColor(holder.itemView.context.getColor(R.color.accent))
+            holder.title.setTextColor(accent)
+            holder.nowPlayingIcon.imageTintList = android.content.res.ColorStateList.valueOf(accent)
             holder.nowPlayingIcon.visibility = View.VISIBLE
             holder.nowPlayingIcon.setImageResource(
                 if (nowPlayingActive()) R.drawable.ic_equalizer else R.drawable.ic_play
             )
             holder.duration.visibility = View.GONE
         } else {
-            holder.card.strokeWidth = 0
+            holder.card.strokeColor = ctx.getColor(R.color.glassStroke)
+            holder.card.strokeWidth = holder.itemView.resources.getDimensionPixelSize(R.dimen.glass_stroke_width)
             holder.title.setTextColor(holder.itemView.context.getColor(R.color.textPrimary))
             holder.nowPlayingIcon.visibility = View.GONE
             holder.duration.visibility = if (selectionActive) View.GONE else View.VISIBLE

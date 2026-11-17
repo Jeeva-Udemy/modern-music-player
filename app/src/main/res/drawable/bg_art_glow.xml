@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Soft halo behind the artwork; tinted at runtime from the album art. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="50%"
+        android:startColor="#B3FFFFFF"
+        android:centerColor="#40FFFFFF"
+        android:endColor="#00FFFFFF" />
+</shape>

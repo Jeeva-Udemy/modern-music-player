@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -63,6 +64,8 @@ class FolderSongsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_folder_songs)
+        AmbientBackgroundView.attach(this)
+        volumeControlStream = AudioManager.STREAM_MUSIC
 
         folderPath = intent.getStringExtra(EXTRA_FOLDER_PATH) ?: ""
 

@@ -6,5 +6,6 @@ class MusicPlayerApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         CrashLogger.install(this)
+        ThemePreference.apply(this)
     }
 }

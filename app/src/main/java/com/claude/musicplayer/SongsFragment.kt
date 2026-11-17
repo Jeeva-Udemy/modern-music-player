@@ -62,6 +62,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     private lateinit var addSelectedToPlaylistButton: ImageButton
     private lateinit var searchEditText: EditText
     private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var sortButton: TextView
 
     private var selectionMode = false
     private val selectedPaths = mutableSetOf<String>()
@@ -116,7 +117,9 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         }
 
         bulkActionButton.text = if (isPlaylistMode) "Remove" else "Delete"
-        currentSortId = if (isPlaylistMode) R.id.sort_playlist_order else SortPreference.load(requireContext())
+        currentSortId = SortPreference.load(requireContext(), forPlaylist = isPlaylistMode)
+        sortButton = view.findViewById(R.id.sortButton)
+        updateSortLabel()
 
         adapter = SongAdapter(
             songs = emptyList(),
@@ -141,7 +144,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         )
         recyclerView.adapter = adapter
 
-        view.findViewById<TextView>(R.id.sortButton).setOnClickListener { anchor -> showSortMenu(anchor) }
+        sortButton.setOnClickListener { anchor -> showSortMenu(anchor) }
 
         view.findViewById<ImageButton>(R.id.searchToggleButton).setOnClickListener { toggleSearch() }
         view.findViewById<ImageButton>(R.id.selectModeButton).setOnClickListener { enterSelectionMode() }
@@ -366,13 +369,20 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         val popup = PopupMenu(requireContext(), anchor)
         val menuRes = if (isPlaylistMode) R.menu.sort_menu_playlist else R.menu.sort_menu
         popup.menuInflater.inflate(menuRes, popup.menu)
+        popup.menu.setGroupCheckable(0, true, true)
+        popup.menu.findItem(currentSortId)?.isChecked = true
         popup.setOnMenuItemClickListener { item ->
             currentSortId = item.itemId
-            if (!isPlaylistMode) SortPreference.save(requireContext(), currentSortId)
+            SortPreference.save(requireContext(), currentSortId, forPlaylist = isPlaylistMode)
+            updateSortLabel()
             applyFiltersAndSort()
             true
         }
         popup.show()
+    }
+
+    private fun updateSortLabel() {
+        sortButton.text = "${SortPreference.label(currentSortId)} ▾"
     }
 
     private fun applySort(songs: List<Song>, sortId: Int): List<Song> {

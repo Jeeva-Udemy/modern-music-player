@@ -1,5 +1,6 @@
 package com.claude.musicplayer
 
+import android.media.AudioManager
 import android.os.Bundle
 import android.widget.ImageView
 import android.widget.SeekBar
@@ -22,6 +23,8 @@ class PlaylistSongsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_playlist_host)
+        AmbientBackgroundView.attach(this)
+        volumeControlStream = AudioManager.STREAM_MUSIC
 
         val name = intent.getStringExtra(EXTRA_PLAYLIST_NAME) ?: ""
 

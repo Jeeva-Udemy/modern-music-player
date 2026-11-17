@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/backgroundDark">
+    android:background="@android:color/transparent">
 
     <TextView
         android:layout_width="wrap_content"
@@ -40,12 +40,14 @@
         android:text="Import from another app's folder (e.g. WhatsApp)"
         android:textAllCaps="false"
         android:textStyle="bold"
-        app:backgroundTint="@color/surfaceElevated"
+        android:textColor="@color/textPrimary"
+        app:backgroundTint="@color/glassFillTop"
         app:cornerRadius="16dp"
         app:icon="@drawable/ic_playlist_add"
         app:iconGravity="textStart"
         app:iconTint="@color/accentSecondary"
-        app:strokeColor="@color/accentSecondary" />
+        app:strokeColor="@color/glassStroke"
+        app:strokeWidth="1dp" />
 
     <ProgressBar
         android:id="@+id/moveProgressBar"

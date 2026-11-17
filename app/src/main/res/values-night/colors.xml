@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="backgroundDark">#0B0A12</color>
+    <color name="surfaceDark">#1E1A29</color>
+    <color name="surfaceElevated">#2A2438</color>
+    <color name="accent">#A877FF</color>
+    <color name="accentSecondary">#FF5CA8</color>
+    <color name="onAccent">#FFFFFF</color>
+    <color name="textPrimary">#FFFFFF</color>
+    <color name="textSecondary">#B0A8C0</color>
+    <color name="danger">#FF6B6B</color>
+
+    <color name="glassFill">#1FFFFFFF</color>
+    <color name="glassFillTop">#2EFFFFFF</color>
+    <color name="glassFillBottom">#0DFFFFFF</color>
+    <color name="glassStroke">#33FFFFFF</color>
+    <color name="glassDivider">#1AFFFFFF</color>
+
+    <color name="ambientBase">#07060C</color>
+    <color name="ambientScrimTop">#66070610</color>
+    <color name="ambientScrimBottom">#E607060C</color>
+    <color name="ambientOrb3">#2DD4BF</color>
+</resources>

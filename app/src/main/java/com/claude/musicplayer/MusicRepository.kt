@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.MediaStore
+import android.util.LruCache
+import java.util.Collections
 import java.io.File
 
 /**
@@ -86,19 +88,47 @@ object MusicRepository {
         return loadAllSongs(context).groupBy { it.folder }
     }
 
+    // Decoded art is cached (downsampled) — list rows, the mini player, the
+    // ambient background and playlist cards all ask for the same images
+    // repeatedly, and full-size decodes on every bind made scrolling janky.
+    private val artCache = object : LruCache<String, Bitmap>(
+        (Runtime.getRuntime().maxMemory() / 1024 / 8).toInt()
+    ) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount / 1024
+    }
+    private val missingArt = Collections.synchronizedSet(HashSet<String>())
+
     /**
      * Decodes a song's embedded album art, or null if it has none. Many
      * tracks simply don't carry embedded art — MediaStore's legacy albumart
      * URI can resolve "successfully" but decode to nothing for those, so we
      * explicitly check the decoded Bitmap rather than trusting the URI.
+     *
+     * [maxPx] caps the decoded size (the art is downsampled to roughly that).
      */
-    fun loadAlbumArt(context: Context, albumArtUri: String?): Bitmap? {
+    fun loadAlbumArt(context: Context, albumArtUri: String?, maxPx: Int = 512): Bitmap? {
         if (albumArtUri == null) return null
+        val cacheKey = "$albumArtUri@$maxPx"
+        artCache.get(cacheKey)?.let { return it }
+        if (missingArt.contains(albumArtUri)) return null
         return try {
-            context.contentResolver.openInputStream(Uri.parse(albumArtUri))?.use {
-                BitmapFactory.decodeStream(it)
+            val uri = Uri.parse(albumArtUri)
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                missingArt.add(albumArtUri)
+                return null
             }
+            var sample = 1
+            while (bounds.outWidth / (sample * 2) >= maxPx && bounds.outHeight / (sample * 2) >= maxPx) sample *= 2
+            val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+            val bitmap = context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, opts)
+            }
+            if (bitmap == null) missingArt.add(albumArtUri) else artCache.put(cacheKey, bitmap)
+            bitmap
         } catch (e: Exception) {
+            missingArt.add(albumArtUri)
             null
         }
     }

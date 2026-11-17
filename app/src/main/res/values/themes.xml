@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.MusicPlayer" parent="Theme.Material3.Dark.NoActionBar">
+    <style name="Theme.MusicPlayer" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/accent</item>
-        <item name="colorOnPrimary">@color/textPrimary</item>
+        <item name="colorOnPrimary">@color/onAccent</item>
         <item name="colorSecondary">@color/accentSecondary</item>
         <item name="colorSurface">@color/surfaceDark</item>
         <item name="colorOnSurface">@color/textPrimary</item>
@@ -10,5 +10,6 @@
         <item name="android:windowBackground">@color/backgroundDark</item>
         <item name="android:statusBarColor">@color/backgroundDark</item>
         <item name="android:navigationBarColor">@color/backgroundDark</item>
+        <item name="android:windowLightStatusBar">@bool/lightSystemBars</item>
     </style>
 </resources>

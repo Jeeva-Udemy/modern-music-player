@@ -1,11 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Light theme palette. The dark palette lives in values-night/colors.xml.
+     Names are kept from the original dark-only theme so every layout picks
+     up both modes automatically. -->
 <resources>
-    <color name="backgroundDark">#0F0D16</color>
-    <color name="surfaceDark">#1E1A29</color>
-    <color name="surfaceElevated">#2A2438</color>
-    <color name="accent">#9B5CFF</color>
-    <color name="accentSecondary">#FF5CA8</color>
-    <color name="textPrimary">#FFFFFF</color>
-    <color name="textSecondary">#B0A8C0</color>
-    <color name="danger">#FF6B6B</color>
+    <color name="backgroundDark">#EEEAF6</color>
+    <color name="surfaceDark">#FFFFFF</color>
+    <color name="surfaceElevated">#E6E0F0</color>
+    <color name="accent">#7C3AED</color>
+    <color name="accentSecondary">#E0418A</color>
+    <color name="onAccent">#FFFFFF</color>
+    <color name="textPrimary">#17131F</color>
+    <color name="textSecondary">#625A70</color>
+    <color name="danger">#E5484D</color>
+
+    <!-- Frosted-glass surfaces -->
+    <color name="glassFill">#99FFFFFF</color>
+    <color name="glassFillTop">#D9FFFFFF</color>
+    <color name="glassFillBottom">#73FFFFFF</color>
+    <color name="glassStroke">#E6FFFFFF</color>
+    <color name="glassDivider">#1A17131F</color>
+
+    <!-- Ambient background -->
+    <color name="ambientBase">#EEEAF6</color>
+    <color name="ambientScrimTop">#80F4F1FA</color>
+    <color name="ambientScrimBottom">#D9EEEAF6</color>
+    <color name="ambientOrb3">#38BDF8</color>
 </resources>
