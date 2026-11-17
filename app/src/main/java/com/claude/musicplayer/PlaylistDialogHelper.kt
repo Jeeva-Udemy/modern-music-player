@@ -6,7 +6,6 @@ import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import android.content.DialogInterface
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 
@@ -24,7 +23,7 @@ object PlaylistDialogHelper {
         val options = (existing + "+ New playlist").toTypedArray()
         val label = if (songs.size == 1) "\"${songs[0].title}\"" else "${songs.size} songs"
 
-        MaterialAlertDialogBuilder(context)
+        GlassDialogBuilder(context)
             .setTitle("Add $label to playlist")
             .setItems(options) { _, which ->
                 if (which == options.lastIndex) {
@@ -95,7 +94,7 @@ object PlaylistDialogHelper {
         input.setText(initial)
         input.setSelection(initial.length)
 
-        val dialog = MaterialAlertDialogBuilder(context)
+        val dialog = GlassDialogBuilder(context)
             .setTitle(title)
             .setView(view)
             .setPositiveButton(confirmLabel, null) // wired below so errors keep the dialog open
@@ -119,7 +118,9 @@ object PlaylistDialogHelper {
             onConfirm(name)
         }
 
+        AccentPainter.paint(view) // text field outline/hint in the artwork colour
         dialog.setOnShowListener {
+            GlassDialogBuilder.tintButtons(dialog)
             dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener { trySubmit() }
             input.requestFocus()
             dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)

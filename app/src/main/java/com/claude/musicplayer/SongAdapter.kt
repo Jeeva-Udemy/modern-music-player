@@ -58,6 +58,7 @@ class SongAdapter(
 
     override fun onBindViewHolder(holder: SongViewHolder, position: Int) {
         val song = songs[position]
+        AccentPainter.paint(holder.itemView)
         holder.title.text = song.title
         holder.subtitle.text = song.artist
         holder.duration.text = formatDuration(song.duration)
@@ -74,7 +75,7 @@ class SongAdapter(
             holder.art.setImageBitmap(bitmap)
         } else {
             val pad = (12 * ctx.resources.displayMetrics.density).toInt()
-            holder.art.imageTintList = android.content.res.ColorStateList.valueOf(ctx.getColor(R.color.accent))
+            holder.art.imageTintList = android.content.res.ColorStateList.valueOf(ArtworkTheme.accentFor(ctx))
             holder.art.setPadding(pad, pad, pad, pad)
             holder.art.setImageResource(R.drawable.ic_music_note)
         }

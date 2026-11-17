@@ -1,6 +1,5 @@
 package com.claude.musicplayer
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -13,7 +12,6 @@ import android.text.TextWatcher
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageButton
-import androidx.appcompat.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -194,7 +192,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        swipeRefresh.setColorSchemeResources(R.color.accent)
+        AccentPainter.bind(viewLifecycleOwner, view)
         swipeRefresh.setOnRefreshListener {
             refresh()
             swipeRefresh.isRefreshing = false
@@ -361,33 +359,30 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     }
 
     private fun showRowMenu(song: Song, anchor: View) {
-        val popup = PopupMenu(requireContext(), anchor)
-        if (isPlaylistMode) {
-            popup.menu.add("Add to Another Playlist")
-            popup.menu.add("Remove from this Playlist")
-            popup.menu.add("Set as Ringtone")
-            popup.menu.add("Delete from Device")
-        } else {
-            popup.menu.add("Add to Playlist")
-            popup.menu.add("Set as Ringtone")
-            popup.menu.add("Delete")
-        }
-        popup.setOnMenuItemClickListener { item ->
-            when (item.title) {
+        val items = if (isPlaylistMode) listOf(
+            GlassMenu.Item("Add to Another Playlist"),
+            GlassMenu.Item("Remove from this Playlist"),
+            GlassMenu.Item("Set as Ringtone"),
+            GlassMenu.Item("Delete from Device", destructive = true)
+        ) else listOf(
+            GlassMenu.Item("Add to Playlist"),
+            GlassMenu.Item("Set as Ringtone"),
+            GlassMenu.Item("Delete", destructive = true)
+        )
+        GlassMenu.show(anchor, items) { index ->
+            when (items[index].title) {
                 "Add to Playlist", "Add to Another Playlist" ->
                     PlaylistDialogHelper.showAddToPlaylistDialog(requireContext(), song)
                 "Set as Ringtone" -> RingtoneHelper.setAsRingtone(requireActivity(), song)
                 "Remove from this Playlist" -> confirmRemoveSingleFromPlaylist(song)
                 "Delete", "Delete from Device" -> confirmDeleteSingleFromDevice(song)
             }
-            true
         }
-        popup.show()
     }
 
     private fun confirmRemoveSingleFromPlaylist(song: Song) {
         val name = playlistName ?: return
-        MaterialAlertDialogBuilder(requireContext())
+        GlassDialogBuilder(requireContext())
             .setTitle("Remove from playlist?")
             .setMessage("Remove \"${song.title}\" from \"$name\"? The file itself won't be deleted.")
             .setPositiveButton("Remove") { _, _ ->
@@ -399,7 +394,7 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     }
 
     private fun confirmDeleteSingleFromDevice(song: Song) {
-        MaterialAlertDialogBuilder(requireContext())
+        GlassDialogBuilder(requireContext())
             .setTitle("Delete \"${song.title}\"?")
             .setMessage("This permanently deletes the file from your device. This cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->
@@ -420,14 +415,14 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
         if (selectedPaths.isEmpty()) return
         if (isPlaylistMode) {
             val name = playlistName ?: return
-            MaterialAlertDialogBuilder(requireContext())
+            GlassDialogBuilder(requireContext())
                 .setTitle("Remove ${selectedPaths.size} song(s)?")
                 .setMessage("They'll be removed from \"$name\". The files themselves won't be deleted.")
                 .setPositiveButton("Remove") { _, _ -> performRemoveFromPlaylist(selectedPaths.toList()) }
                 .setNegativeButton("Cancel", null)
                 .show()
         } else {
-            MaterialAlertDialogBuilder(requireContext())
+            GlassDialogBuilder(requireContext())
                 .setTitle("Delete ${selectedPaths.size} file(s)?")
                 .setMessage("These files will be permanently deleted from your device. This cannot be undone.")
                 .setPositiveButton("Delete") { _, _ ->
@@ -490,19 +485,14 @@ class SongsFragment : Fragment(R.layout.fragment_songs) {
     }
 
     private fun showSortMenu(anchor: View) {
-        val popup = PopupMenu(requireContext(), anchor)
-        val menuRes = if (isPlaylistMode) R.menu.sort_menu_playlist else R.menu.sort_menu
-        popup.menuInflater.inflate(menuRes, popup.menu)
-        popup.menu.setGroupCheckable(0, true, true)
-        popup.menu.findItem(currentSortId)?.isChecked = true
-        popup.setOnMenuItemClickListener { item ->
-            currentSortId = item.itemId
+        val ids = SortPreference.options(forPlaylist = isPlaylistMode)
+        val items = ids.map { GlassMenu.Item(SortPreference.label(it), checked = it == currentSortId) }
+        GlassMenu.show(anchor, items) { index ->
+            currentSortId = ids[index]
             SortPreference.save(requireContext(), currentSortId, forPlaylist = isPlaylistMode)
             updateSortLabel()
             applyFiltersAndSort()
-            true
         }
-        popup.show()
     }
 
     private fun updateSortLabel() {

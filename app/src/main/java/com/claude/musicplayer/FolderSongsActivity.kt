@@ -1,6 +1,5 @@
 package com.claude.musicplayer
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -104,7 +103,7 @@ class FolderSongsActivity : AppCompatActivity() {
         )
         recyclerView.adapter = adapter
 
-        swipeRefresh.setColorSchemeResources(R.color.accent)
+        AccentPainter.bind(this, findViewById(android.R.id.content))
         swipeRefresh.setOnRefreshListener {
             adapter.updateData(loadSongs())
             swipeRefresh.isRefreshing = false
@@ -171,7 +170,7 @@ class FolderSongsActivity : AppCompatActivity() {
 
     private fun confirmDelete() {
         if (selectedPaths.isEmpty()) return
-        MaterialAlertDialogBuilder(this)
+        GlassDialogBuilder(this)
             .setTitle("Delete ${selectedPaths.size} file(s)?")
             .setMessage("These files will be permanently deleted from your device. This cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->

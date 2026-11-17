@@ -49,6 +49,7 @@ class DuplicateAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        AccentPainter.paint(holder.itemView)
         when (val row = rows[position]) {
             is DuplicateRow.Header -> {
                 holder as HeaderViewHolder

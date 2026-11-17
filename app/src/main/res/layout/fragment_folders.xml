@@ -18,6 +18,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/moveMp3sButton"
+        android:tag="accent_fill"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="14dp"
@@ -33,6 +34,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/importFolderButton"
+        android:tag="accent2_tint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="14dp"

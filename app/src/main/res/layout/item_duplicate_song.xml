@@ -9,7 +9,7 @@
     app:cardBackgroundColor="@color/glassFill"
     app:cardCornerRadius="14dp"
     app:cardElevation="0dp"
-    app:rippleColor="@color/accent"
+    app:rippleColor="@color/rippleSoft"
     app:strokeColor="@color/glassStroke"
     app:strokeWidth="1dp">
 
@@ -23,6 +23,7 @@
 
         <CheckBox
             android:id="@+id/duplicateCheckbox"
+        android:tag="accent_tint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             app:buttonTint="@color/accent" />

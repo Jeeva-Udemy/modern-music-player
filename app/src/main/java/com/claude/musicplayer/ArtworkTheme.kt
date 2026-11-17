@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.widget.SeekBar
@@ -99,6 +100,24 @@ object ArtworkTheme {
     /** White or near-black, whichever reads better on top of [color]. */
     fun onColorFor(color: Int): Int =
         if (ColorUtils.calculateLuminance(color) > 0.55) Color.parseColor("#17131F") else Color.WHITE
+
+    /**
+     * Background for dropdowns and dialogs: the screen's surface colour
+     * washed with the artwork accent, a faint accent rim and rounded corners
+     * — so popups look like part of the screen behind them.
+     */
+    fun panelBackground(context: Context, radiusDp: Float): GradientDrawable {
+        val density = context.resources.displayMetrics.density
+        val accent = accentFor(context)
+        val surface = context.getColor(R.color.surfaceDark)
+        val wash = ColorUtils.blendARGB(surface, accent, if (isNight(context)) 0.16f else 0.09f)
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radiusDp * density
+            setColor(ColorUtils.setAlphaComponent(wash, 0xF7))
+            setStroke((1 * density).toInt().coerceAtLeast(1), ColorUtils.setAlphaComponent(accent, 90))
+        }
+    }
 
     fun tintSeekBar(seekBar: SeekBar, color: Int) {
         val list = ColorStateList.valueOf(color)

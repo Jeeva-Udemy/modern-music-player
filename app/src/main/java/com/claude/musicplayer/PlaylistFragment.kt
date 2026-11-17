@@ -1,10 +1,8 @@
 package com.claude.musicplayer
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import androidx.appcompat.widget.PopupMenu
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -42,26 +40,27 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
         }
 
         swipeRefresh = view.findViewById(R.id.playlistSwipeRefresh)
-        swipeRefresh.setColorSchemeResources(R.color.accent)
+        AccentPainter.bind(viewLifecycleOwner, view)
+        // Re-bind cards so placeholder covers pick up the new artwork colours.
+        ArtworkTheme.bind(viewLifecycleOwner, requireContext()) { adapter.notifyDataSetChanged() }
         swipeRefresh.setOnRefreshListener { refresh() }
     }
 
     private fun showCardMenu(info: PlaylistCardInfo, anchor: View) {
-        val popup = PopupMenu(requireContext(), anchor)
-        popup.menu.add("Open")
-        if (info.songs.isNotEmpty()) popup.menu.add("Play")
-        popup.menu.add("Rename")
-        popup.menu.add("Delete playlist")
-        popup.setOnMenuItemClickListener { item ->
-            when (item.title) {
+        val items = buildList {
+            add(GlassMenu.Item("Open"))
+            if (info.songs.isNotEmpty()) add(GlassMenu.Item("Play"))
+            add(GlassMenu.Item("Rename"))
+            add(GlassMenu.Item("Delete playlist", destructive = true))
+        }
+        GlassMenu.show(anchor, items) { index ->
+            when (items[index].title) {
                 "Open" -> openPlaylist(info)
                 "Play" -> PlaybackController.play(requireContext(), info.songs, 0)
                 "Rename" -> PlaylistDialogHelper.showRenameDialog(requireContext(), info.name) { refresh() }
                 "Delete playlist" -> confirmDelete(info)
             }
-            true
         }
-        popup.show()
     }
 
     private fun openPlaylist(info: PlaylistCardInfo) {
@@ -71,7 +70,7 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
     }
 
     private fun confirmDelete(info: PlaylistCardInfo) {
-        MaterialAlertDialogBuilder(requireContext())
+        GlassDialogBuilder(requireContext())
             .setTitle("Delete \"${info.name}\"?")
             .setMessage("Only the playlist is removed — the songs stay on your device.")
             .setPositiveButton("Delete") { _, _ ->

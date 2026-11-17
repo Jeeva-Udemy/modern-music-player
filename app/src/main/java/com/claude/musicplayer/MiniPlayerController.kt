@@ -151,7 +151,7 @@ class MiniPlayerController(
             artView.setImageBitmap(bitmap)
         } else {
             val pad = (10 * context.resources.displayMetrics.density).toInt()
-            artView.imageTintList = ColorStateList.valueOf(context.getColor(R.color.accent))
+            artView.imageTintList = ColorStateList.valueOf(ArtworkTheme.accentFor(context))
             artView.setPadding(pad, pad, pad, pad)
             artView.setImageResource(R.drawable.ic_music_note)
         }

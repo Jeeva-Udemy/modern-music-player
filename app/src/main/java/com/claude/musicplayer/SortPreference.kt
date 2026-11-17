@@ -63,5 +63,14 @@ object SortPreference {
         return id
     }
 
+    /** Sort choices in menu order; "Playlist order" only inside playlists. */
+    fun options(forPlaylist: Boolean): List<Int> {
+        val common = listOf(
+            R.id.sort_title_asc, R.id.sort_title_desc, R.id.sort_artist,
+            R.id.sort_duration, R.id.sort_newest, R.id.sort_oldest
+        )
+        return if (forPlaylist) listOf(R.id.sort_playlist_order) + common else common
+    }
+
     fun label(menuItemId: Int): String = idToLabel[menuItemId] ?: "Sort"
 }

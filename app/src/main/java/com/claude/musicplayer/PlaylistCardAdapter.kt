@@ -1,5 +1,6 @@
 package com.claude.musicplayer
 
+import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -46,6 +47,11 @@ class PlaylistCardAdapter(
             else -> "${item.songs.size} songs"
         }
 
+        // Placeholder gradient for playlists without cover art follows the artwork colours too.
+        holder.cover.background = GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(ArtworkTheme.accentFor(ctx), ArtworkTheme.secondaryFor(ctx))
+        )
         val bitmap = MusicRepository.loadAlbumArt(ctx, item.coverUri, 400)
         if (bitmap != null) {
             holder.cover.setImageBitmap(bitmap)

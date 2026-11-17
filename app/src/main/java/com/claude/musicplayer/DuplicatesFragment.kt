@@ -1,6 +1,5 @@
 package com.claude.musicplayer
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -58,7 +57,7 @@ class DuplicatesFragment : Fragment(R.layout.fragment_duplicates) {
         deleteButton.setOnClickListener { confirmDelete() }
 
         swipeRefresh = view.findViewById(R.id.duplicatesSwipeRefresh)
-        swipeRefresh.setColorSchemeResources(R.color.accent)
+        AccentPainter.bind(viewLifecycleOwner, view)
         swipeRefresh.setOnRefreshListener {
             loadDuplicates()
             swipeRefresh.isRefreshing = false
@@ -109,7 +108,7 @@ class DuplicatesFragment : Fragment(R.layout.fragment_duplicates) {
     private fun confirmDelete() {
         if (selectedPaths.isEmpty()) return
 
-        MaterialAlertDialogBuilder(requireContext())
+        GlassDialogBuilder(requireContext())
             .setTitle("Delete ${selectedPaths.size} file(s)?")
             .setMessage("These files will be permanently deleted from your device. This cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->

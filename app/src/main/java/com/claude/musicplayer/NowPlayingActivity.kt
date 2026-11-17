@@ -173,7 +173,7 @@ class NowPlayingActivity : AppCompatActivity() {
         artistView.text = song.artist
         if (song.id != lastBoundSongId) {
             lastBoundSongId = song.id
-            artView.imageTintList = ColorStateList.valueOf(getColor(R.color.accent))
+            artView.imageTintList = ColorStateList.valueOf(ArtworkTheme.accentFor(this))
             artView.setPadding(dp(60), dp(60), dp(60), dp(60))
             artView.setImageResource(R.drawable.ic_music_note)
             val bitmap = MusicRepository.loadAlbumArt(this, song.albumArtUri)

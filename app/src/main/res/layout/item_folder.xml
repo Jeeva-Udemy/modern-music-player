@@ -9,7 +9,7 @@
     app:cardBackgroundColor="@color/glassFill"
     app:cardCornerRadius="20dp"
     app:cardElevation="0dp"
-    app:rippleColor="@color/accent"
+    app:rippleColor="@color/rippleSoft"
     app:strokeColor="@color/glassStroke"
     app:strokeWidth="1dp">
 
@@ -34,6 +34,7 @@
                 android:layout_height="match_parent"
                 android:padding="10dp"
                 android:src="@drawable/ic_folder"
+                android:tag="accent2_tint"
                 app:tint="@color/accentSecondary" />
         </com.google.android.material.card.MaterialCardView>
 
@@ -64,6 +65,7 @@
 
             <TextView
                 android:id="@+id/folderCount"
+        android:tag="accent2_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"

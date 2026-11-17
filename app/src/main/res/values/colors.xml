@@ -28,4 +28,5 @@
 
     <!-- Dropdown menus and dialogs: frosted, but opaque enough to read over any list -->
     <color name="dropdownFill">#F5FFFFFF</color>
+    <color name="rippleSoft">#2217131F</color>
 </resources>

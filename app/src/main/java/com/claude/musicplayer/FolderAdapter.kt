@@ -24,6 +24,7 @@ class FolderAdapter(
     }
 
     override fun onBindViewHolder(holder: FolderViewHolder, position: Int) {
+        AccentPainter.paint(holder.itemView)
         val (fullPath, songs) = folders[position]
         holder.name.text = File(fullPath).name
         holder.path.text = fullPath
